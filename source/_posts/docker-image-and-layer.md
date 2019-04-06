@@ -1,8 +1,13 @@
 ---
 title: docker镜像与分层
 date: 2019-03-31 20:42:33
-tags: [docker,镜像,分层,文件]
-categroies: docker
+tags: 
+- docker
+- 镜像
+- 分层
+- 文件
+categories: 
+- docker
 ---
 
 一直对Docker中的镜像（image），分层（layer）及文件（file）三者之间的关系一直很好奇，这篇文章讲述就是这三者之间的关系。
