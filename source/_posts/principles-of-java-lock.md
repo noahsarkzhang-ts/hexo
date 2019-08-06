@@ -10,23 +10,23 @@ categories:
 - 并发编程
 ---
 
-在Java中要实现资源的互斥访问及线程间的同步，一般有两种方式，一种是通过synchronized（同步块或同步方法）结合Oject.wait()及Object.signal()来实现，另外一种是通过ReentrantLock和Condition来实现。为了解决不同条件下的并发问题，Java引入了一些高级锁和同步机制，如Semaphore,ReentrantReadWriteLock,CountDownLatch和CyclicBarrier等等。
+在Java中要实现资源的互斥访问及线程间的同步，一般有两种方式，一种是通过synchronized（同步块或同步方法）结合Oject.wait()及Object.signal()来实现，另外一种是通过ReentrantLock和Condition来实现。为了解决不同条件下的并发问题，Java还引入了一些高级锁和同步机制，如Semaphore,ReentrantReadWriteLock,CountDownLatch和CyclicBarrier等等。
 
 在项目开发中，用ReentrantLock相对较多，但对其的理解程序仅限于Java语言层面，对于JVM及操作系统的底层实现并没有了解，没有一个全局的概念，相关知识点存在断层，如ReentrantLock在JVM和操作系统中到底对应什么实体？等待队列存储在什么地方？线程的等待及唤醒对应什么样的操作？JVM及操作系统在ReentrantLock中提供了什么样的功能？正好在学习操作系统的知识，把这些知识重新梳理下，打通认知上的盲点。
 
 ## 1. 整体结构
 ![reentrantlock](/images/reentrantlock.jpg "reentrantlock")
-1. 在java层，维护了锁的state状态及等待队列（包括条件队列），对JVM的依赖只是线程的阻塞和唤醒。给state赋予不同的含义及控制获取锁的方式，java在语言层面实现丰富的锁结构。
+1. 在Java层，维护了锁的state状态及等待队列（包括条件队列），对JVM的依赖只是线程的阻塞和唤醒。给state赋予不同的含义及控制获取锁的方式，Java在语言层面实现丰富的锁结构。
 2. 在JVM层，线程的阻塞和唤醒是通过互斥（pthread_mutex_t）和条件变量(pthread_cond_t)来实现的。_counter用来表示一个许可，通过_counter的值来判断是否在该条件变量上进行等待和唤醒，_counter默认值是0，表示许可未被使用，调用park之后，线程将被阻塞；执行unpark之后，_counter赋值为1，将会唤醒被等待的线程，唤醒的操作是将等待的线程从条件变量（cond）的等待队列移到互斥（mutex）的等待队列上，互斥（mutex）释放之后才将该线程进行调度。
 3. futex由一个用户空间int类型的地址uaddr及相关联的等待队列组成，uaddr由mutex或cond中定义。在内核中维护一个哈希表的数据结构，以uaddr为key,通过hash操作，添加到对应的列表中，从而可以快速搜索到uaddr对应的等待线程。
 
 ## 2. ReentrantLock
-在java中有一个非常重要的并发数据结构AbstractQueuedSynchronizer(AQS),它主要的功能有三个：1）维护状态值（state）;2）线程同步队列的管理；3）抽象封装流程。AQS对锁的实现进行了高度抽象，提供了一套模板方法，对申请锁和释放锁的流程进行了封装，将差异的部分由子类来实现，如state字段含义的解析，同时子类通过扩展tryAcquire,tryRelease,tryAcquireShared,tryReleaseSharede及isHeldExclusivelys方法来实现不同的锁。
+在Java中有一个非常重要的并发数据结构AbstractQueuedSynchronizer(AQS),它主要的功能有三个：1）维护状态值（state）;2）线程同步队列的管理；3）封装流程。AQS对锁的实现进行了高度抽象，提供了一套模板方法，对申请锁和释放锁的流程进行了封装，将差异的部分由子类来实现，如state字段含义的解析，同时子类通过扩展tryAcquire,tryRelease,tryAcquireShared,tryReleaseSharede及isHeldExclusivelys方法来实现不同语义的锁。
 
 ### 2.1 state状态
-ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSync和FairSync），它们都是继承自AQS，差别主要在于tryAcquire的实现，后面会进到，不过对于state的定义是一致的。在Reentrant中，state有如下的含义:
-- 0:表示锁未被占用，可以获取锁，获取锁之后变为1；
-- 大于0:表示锁被占用，其它线程获取锁会被阻塞，拥有锁的线程可以重复获取锁（可重入的概念），重复获取锁要对state加1。
+ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSync和FairSync），它们都是继承自AQS，差别主要在于tryAcquire的实现，后面会进到，不过对于state的定义是一致的。在ReentrantLock中，state有如下的含义:
+- 0：表示锁未被占用，可以获取锁，获取锁之后变为1；
+- 大于0：表示锁被占用，其它线程获取锁会被阻塞，拥有锁的线程可以重复获取锁（可重入的概念），重复获取锁要对state加1。
 
 ### 2.2 等待队列
 除了状态的管理，ReetrantLock还会维护一个同步队列，线程获取ReentrantLock锁失败后，会将该线程加入到队列的尾部，同时调用LockSupport.park方法让线程阻塞，等待队列是一个双向队列，其结点如下图所示：
@@ -47,8 +47,8 @@ ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSyn
 **说明：** 条件队列是指阻塞在条件变量上线程等待队列，这里为了与Lock变量上等待队列区分，所以叫做条件队列。
 
 ReentrantLock可以单独使用，也可以配合条件变量一起使用，使用方式如下所示:
-```java
-// 变量申明
+```Java
+// 变量声明
 private ReentrantLock lock;
 private Condition full;
 private Condition empty;
@@ -81,12 +81,12 @@ try {
 
 ```
 
-条件变量(Codition)通常需要与Lock配合使用，为什么需要配合使用，后面章节会有描述。每一个条件变量都会维护一个条件队列，通过await方法之后，会释放lock锁，同时将当前线程加入到条件队列中，最后阻塞当前线程。signal/signalAll则会将条件队列中一个或所有线程移到Lock对应的等待队列中，并等待唤醒。拥有两个结点的条件队列如下所示：
+条件变量(Codition)通常需要与Lock配合使用，为什么需要配合使用，后面章节会有描述。每一个条件变量都会维护一个条件队列，通过await方法之后，会释放Lock锁，同时将当前线程加入到条件队列中，最后阻塞当前线程。signal/signalAll则会将条件队列中一个或所有线程移到Lock对应的等待队列中，并等待唤醒。拥有两个结点的条件队列如下所示：
 ![con-queue](/images/con-queue.jpg "con-queue")
 
 ### 2.4 tryAcquire
 在AQS中定义了一套获取锁的模板方法，如下所示：
-```java
+```Java
 public final void acquire(int arg) {
     if (!tryAcquire(arg) &&
         acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
@@ -97,9 +97,9 @@ public final void acquire(int arg) {
 - 尝试获取锁，失败之后将线程加入到队列；
 - 加入队列失败，则执行中断。
 
-在ReentrantLock中有两中实现，分别是公平锁和不公平锁，差别在于tryAcquire的实现，不公平锁的tryAcquire如下所示：
+在ReentrantLock中有两个实现，分别是公平锁和不公平锁，差别在于tryAcquire的实现，不公平锁的tryAcquire如下所示：
 ReentrantLock#NonfairSync.tryAcquire.nonfairTryAcquire:
-```java
+```Java
 final boolean nonfairTryAcquire(int acquires) {
     final Thread current = Thread.currentThread();
     int c = getState();
@@ -121,7 +121,7 @@ final boolean nonfairTryAcquire(int acquires) {
 ```
 
 ReentrantLock#FairSync.tryAcquire
-```java
+```Java
 protected final boolean tryAcquire(int acquires) {
     final Thread current = Thread.currentThread();
     int c = getState();
@@ -152,7 +152,7 @@ protected final boolean tryAcquire(int acquires) {
 
 ### 2.5 LockSupport
 如果获取锁失败，会调用LockSupport.park方法阻塞当前线程。
-```java
+```Java
 private final boolean parkAndCheckInterrupt() {
     LockSupport.park(this);
     return Thread.interrupted();
@@ -160,8 +160,8 @@ private final boolean parkAndCheckInterrupt() {
 ```
 LockSupport代码如下所示，它最终会调用UNSAFE.park方法，该方法是一个本地方法，由JVM虚拟机来实现。
 
-LockSupport.java
-```java
+LockSupport.Java
+```Java
 public static void park(Object blocker) {
     Thread t = Thread.currentThread();
     setBlocker(t, blocker);
@@ -170,7 +170,7 @@ public static void park(Object blocker) {
 }
 ```
 在ReentrantLock中，线程的唤醒同样依赖于LockSupport中的方法，最终也是调用UNSAFE的本地方法。在UNSAFE中提供给LockSupport使用的就是如下两个方法：
-```java
+```Java
 public native void unpark(Thread jthread);
 
 // 第一个参数代表第二个参数是否是绝对时间，第二个参数代表最长阻塞时间
@@ -180,7 +180,7 @@ public native void park(boolean isAbsolute, long time);
 仅仅两个简单的接口，就为上层提供了强大的同步原语。
 
 ## 3. JVM同步原语
-在HotSpot虚拟机(Oracle JDK和Openjdk)中，park和unpark方法由底层的Parker类来实现，虚拟机中每一个线程都会关联一个Park对象，在这里三个层面的线程，分别是java线程、jvm线程和操作系统线程，先分析下它们之间的关系。
+在HotSpot虚拟机(Oracle JDK和Openjdk)中，park和unpark方法由底层的Parker类来实现，虚拟机中每一个线程都会关联一个Park对象，在这里三个层面的线程，分别是Java线程、jvm线程和操作系统线程，先分析下它们之间的关系。
 
 ### 3.1 Thread
 HotSpot虚拟机里的Thread类对应着一个OS的Thread, JavaThread类继承自Thread, JavaThread实例持有Java层的Thread实例。所以, 在Java层的Thread, 在操作系统上对应一个thread, linux上就是一个轻量级task。
@@ -276,7 +276,7 @@ class PlatformParker : public CHeapObj<mtInternal> {
 - _mutex,_cond:互斥、条件变量，实现阻塞及唤醒的关键就在这里。
 
 ### 3.3 阻塞/唤醒
-LockSuport.park/unpark调用UNSAFE.park/unpark，而UNSAFE再调用Parker的park及unpark方法，下面将分析Parker对象中的park/unpark流程。
+LockSuport.park/unpark调用UNSAFE.park/unpark，而UNSAFE再调用Parker的park及unpark方法，下面分析Parker对象中的park/unpark流程。
 
 #### 3.3.1 Parker::park
 ```cpp
@@ -403,14 +403,13 @@ void Parker::unpark() {
 3. 对_counter的旧值进行判断，如果小于1，则表示有线程阻塞在条件变量，执行pthread_cond_signal唤醒操作。
 4. 释放锁。
 
-Parker::unpark操作相对比较简单，1）修改_counter赋值为1；2）唤醒进程。同时也可以看到，_counter执行的赋值操作，执行一次unpark和执行多次unpark效果一样。
-
+Parker::unpark操作相对比较简单，1）修改_counter赋值为1；2）唤醒进程。同时也可以看到，_counter执行的是赋值操作，执行一次unpark和执行多次unpark效果一样。
 
 **源代码：**
 
-[thread.hpp](http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.hpp)
-[thread.cpp](http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.cpp)
-[linux_os.cpp](http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/os/linux/vm/os_linux.cpp)
+[thread.hpp](http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.hpp)
+[thread.cpp](http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/share/vm/runtime/thread.cpp)
+[linux_os.cpp](http://hg.openjdk.Java.net/jdk8/jdk8/hotspot/file/87ee5ee27509/src/os/linux/vm/os_linux.cpp)
 
 ### 3.4. mutex/cond
 通过上面的分析，LockSupport.park最终调用的是pthread_cond_wait，LockSupport.unpark调用的是pthread_cond_signal，阻塞/唤醒操作是通过条件变量来实现的，另外，这两个方法调用需要互斥（mutex）来协助（pthread_mutex_lock,pthread_mutex_unlock和pthread_mutex_trylock），现在我们进一步分析mutex和cond的实现。
@@ -541,11 +540,11 @@ __pthread_mutex_lock (pthread_mutex_t *mutex)
    }))
 ```
 **主要流程：**
-- 对\_\_futex进行CAS操作，如果旧值为0，则将\_\_futex修改为1，tomic_compare_and_exchange_bool_acq就是完成这个功能。
+- 对\_\_futex进行CAS操作，如果旧值为0，则将\_\_futex修改为1，atomic_compare_and_exchange_bool_acq就是完成这个功能。
 - 如果修改成功获取锁返回，且\_\_futex值为1；
 - 如果修改失败，说明\_\_futex不为0，说明其它线程获取到锁，则执行下面的分支。
 
-tomic_compare_and_exchange_bool_acq的定义如下：如果oldval等于\*mem，那么设置\*mem=newval，并且返回0； 如果\*mem的值没有改变，那么就返回非0。 直白一点就是\*mem等于oldval就返回0，不等于就返回非0。
+atomic_compare_and_exchange_bool_acq(mem, newval, oldval)的定义如下：如果oldval等于\*mem，那么设置\*mem=newval，并且返回0； 如果\*mem的值没有改变，那么就返回非0。 直白一点就是\*mem等于oldval就返回0，不等于就返回非0。
 
 ```cpp
 /* Atomically store NEWVAL in *MEM if *MEM is equal to OLDVAL.
@@ -907,8 +906,203 @@ lll_futex_wake (&cond->__data.__futex, INT_MAX, pshared);
 2. 条件变量(cond)内部有一个cond锁，实现对cond内部状态进行互斥访问；
 3. 条件变量(cond)和互斥(mutex)阻塞/唤醒线程都是通过FUTEX_WAIT和FUTEX_WAKE系统调用来实现。
 
+## 4. 线程中断
+唤醒阻塞的线程，除了使用SupportLock.park，也可以调用Thread.interrupt()。调用interrupt，可以设置线程的中断状态，同时唤醒因为调用Object.wait(), Thread.join()，Thread.sleep()及AQS而被阻塞的线程。现在我们来看下interrupt的流程。
+```Java
+//Thread.Java
+public void interrupt() {
+    if (this != Thread.currentThread())
+        checkAccess();
+    synchronized (blockerLock) {
+        Interruptible b = blocker;   //中断触发器
+        if (b != null) {
+            interrupt0();           
+            b.interrupt(this);   //触发回调接口
+            return;
+        }
+    }
+    interrupt0();
+}
+```
+在这里，有两个关键的点，1）我们可以对中断调用设置回调接口，以满足某些特殊场景，如InterruptibleChannel；2）中断功能最终通过本地方法interrupt0()来实现。
+```cpp
+private native void interrupt0();
+```
+在Hotspot虚拟机中，该方法会调用Thread对象中的interrupt方法。
+
+```cpp
+//os_linux.cpp
+void os::interrupt(Thread* thread) {
+    assert(Thread::current() == thread || Threads_lock->owned_by_self(),
+        "possibility of dangling Thread pointer");
+
+    //     
+    OSThread* osthread = thread->osthread();
+
+    if (!osthread->interrupted()) {
+        osthread->set_interrupted(true);
+
+        // More than one thread can get here with the same value of osthread,
+        // resulting in multiple notifications.  We do, however, want the store
+        // to interrupted() to be visible to other threads before we execute unpark().
+        OrderAccess::fence();
+        ParkEvent * const slp = thread->_SleepEvent ;
+        if (slp != NULL) slp->unpark() ;
+        }
+
+    // For JSR166. Unpark even if interrupt status already was set
+    if (thread->is_Java_thread())
+        ((JavaThread*)thread)->parker()->unpark();
+
+    ParkEvent * ev = thread->_ParkEvent ;
+    if (ev != NULL) ev->unpark() ;
+}
+
+```
+每一个Java线程都与一个osthread一一对应，如果相应的os线程没有被中断，则会设置osthread的interrupt标志位为true（对应一个volatile int），并唤醒线程的SleepEvent。随后唤醒线程的parker和ParkEvent。简而言之，interrupt操作会对三种事件进行unpark唤醒，分别是thread->_SleepEvent、thread->parker()和thread->_ParkEvent。在3.1节可以看到这些变量的具体声明。Parker对象我们在上面的内容中已经讲过，现在来看下ParkEvent。
+
+### 4.1 ParkEvent
+Thread类中包含了两种作用不同的ParkEvent，_ParkEvent变量用于synchronized同步块和Object.wait()，_SleepEvent变量用于Thread.sleep()，ParkEvent类的声明如下：
+```cpp
+class ParkEvent : public os::PlatformEvent {
+    ... // 略
+}
+
+// os_linux.cpp
+class PlatformEvent : public CHeapObj {
+    private:
+        pthread_mutex_t _mutex  [1] ;
+        pthread_cond_t  _cond   [1] ;
+        ...
+
+    public:
+        PlatformEvent() {
+            int status;
+            status = pthread_cond_init (_cond, NULL);
+            assert_status(status == 0, status, "cond_init");
+            status = pthread_mutex_init (_mutex, NULL);
+            assert_status(status == 0, status, "mutex_init");
+            _Event   = 0 ;
+            _nParked = 0 ;
+            _Assoc   = NULL ;
+        }
+        
+    void park () ;
+    void unpark () ;
+    int  park (jlong millis) ;
+    ...
+} ;
+```
+在这里可以看到，PlatformEvent跟Parker一样，也是基于pthread_mutex_t和pthread_cond_t实现的。_ParkEvent和_SleepEvent都会在Thread.interrupt()时触发unpark()动作，而PlatformEvent::unpark()方法会调用库函数pthread_cond_signal(_cond)唤醒被阻塞的线程，pthread_cond_signal方法已经在上面讲过，总之一句话，PlatformEvent阻塞和唤醒线程的逻辑跟Parker是一致的，这里不在描述。
+
+### 4.2 InterruptedException
+```Java
+// Thread.Java
+public static native void sleep(long millis) throws InterruptedException;
+
+// Thread.Java 
+// join方法是通过object.wait来实现的。
+public final void join() throws InterruptedException {
+    join(0);
+}
+
+// Ojbect.Java
+public final native void wait(long timeout) throws InterruptedException;
+
+```
+
+调用中断，从Object.wait(), Thread.join()及Thread.sleep()返回时，一般都会抛出InterruptedException，通常以下三种处理办法：
+1. 如果自己很清楚当前线程被中断后的处理方式，则按自己的方式处理，通常是做好善后工作，主动退出线程；
+2. 直接在方法声明中throws InterruptedException，丢给上层处理；
+3. 重新设置中断标记位，Thread.currentThread().interrupt()，交给后续方法处理，原因是底层抛出InterruptedException时会清除中断标记位，捕获到异常后如果不想处理，可以重新设置中断标记位。
+
+**注意：** 请不要吞掉InterruptedException，可能会导致上层的调用方出现不可预料的结果。
+
+```Java
+// Unsafe.Java
+public native void park(boolean var1, long var2);
+```
+在AQS相关类中线程阻塞在UNSAFE.park方法上，调用中断之后，不会抛出InterruptedException。线程被唤醒后，会根据中断标记位来判断是否从中断中退出，一般有两种做法，1）检测到中断，构造InterruptedException向上抛出，带InterruptedException声明的方法就是这种处理办法；2）重新设置中断标记位,由上层业务处理，以AQS的acquire方法为例:
+```Java
+// AbstractQueuedSynchronizer.Java
+
+// 1. 抛出InterruptedException
+public final void acquireInterruptibly(int arg)
+        throws InterruptedException {
+
+    if (Thread.interrupted())
+        // 抛出InterruptedException
+        throw new InterruptedException();
+    if (!tryAcquire(arg))
+        doAcquireInterruptibly(arg);
+}
+
+// 2. 重置中断标记位
+public final void acquire(int arg) {
+    if (!tryAcquire(arg) &&
+        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+}
+
+// selfInterrupt,重置中断标记位
+static void selfInterrupt() {
+    Thread.currentThread().interrupt();
+}
+
+```
+### 4.3 总结
+
+Java提供了Thread.interrupt()方法，该方法设置线程中的中断标记位，并唤醒可中断的阻塞方法，包括Thread.sleep()，Object.wait()，nio通道的IO等待，以及LockSupport.park()。识别一个方法是否会被中断，只需要看其声明中是否会throws InterruptedException或ClosedByInterruptException。
+每个Java线程都会对应一个osthread，它持有了三种条件变量，分别用于Thread.sleep()，Object.wait()和unsafe.park()。Thread.interrupt()会依次唤醒三个条件变量，以达到中断的目的。线程的同步与唤醒最终都使用了pthread_cond_wait和pthread_cond_signal这些pthread库函数
+
+## 5.Futex
+Futex，Fast Userspace muTEXes，按英文翻译过来就是快速用户空间互斥体。在Futex之前，Linux内核中锁主要针对一个内核对象来操作，并在这个基础上实现了进程的睡眠与唤醒。使用这样的机制，能很好的支持进程阻塞等待。但是最大的缺点是每次lock与unlock都是一次系统调用，即使没有锁冲突，也必须要通过系统调用进入内核之后才能识别。为了解决这个问题，Futex就应运而生。Futex是一种用户态和内核态混合的同步机制，锁变量位于用户空间，对锁冲突的检测是在用户空间完成，如果有竞争才会进行系统调用，进行阻塞和唤醒操作。
+
+### 5.1 Futex结构
+Futex满足了两个需求：1）支持一种锁粒度的睡眠与唤醒操作；2）管理进程/线程挂起时的等待队列。Futex主要有futex_wait和futex_wake两个操作:
+```cpp
+// 在uaddr指向的这个锁变量上挂起等待（仅当*uaddr==val时）
+int futex_wait(int *uaddr, int val);
+// 唤醒n个在uaddr指向的锁变量上挂起等待的进程
+int futex_wake(int *uaddr, int n);
+```
+futex_wait传入一个用户空间的地址uaddr,第二个参数表示当前uaddr的值，只有*uaddr==val时，当前线程才会被阻塞加入到等待队列中，作这样的判断主要是为了保证在系统调用前该值没有被改变，如果有其它线程修改了val值，则直接返回，尝试重新获取锁。futex_wake唤醒绑定在uaddr变量上的n个线程。
+
+Futex实现了锁粒度的等待队列，而这个锁却并不需要事先向内核申明。任何时候，用户态调用futex_wait传入一个uaddr，内核就会维护起与之配对的等待队列。Futex维护的这个等待队列由若干个带spinlock的链表构成。调用futex_wait挂起的进程，通过其uaddr hash到某一个具体的链表上去。这样一方面能分散对等待队列的竞争、另一方面减小单个队列的长度，便于futex_wake时的查找。每个链表各自持有一把spinlock，将“*uaddr和val的比较操作”与“把进程加入队列的操作”保护在一个临界区中。下图可以做一个形象的说明：
+![futex](/images/futex.png "futex")
+
+### 5.2 相关优化
+pthread_cond_broadcast会唤醒所有等待者，这些等待者被唤醒之后第一件事情便是重新获取与条件变量配合使用的互斥锁（pthread_mutex_t），所有等待者同时争抢mutex，但实际只会有一个抢到锁，其它等待者又被阻塞在互斥锁上，造成资源的浪费，这就是“惊群”现象，作为一种优化，Futex提供了Requeue接口，定义如下：
+```cpp
+int futex_requeue(int *uaddr, int n, int *uaddr2, int n2);
+int futex_cmp_requeue(int *uaddr, int n, int *uaddr2, int n2, int val);
+```
+功能跟futex_wake有点相似，但不仅仅是唤醒n个等待uaddr的进程/线程，而更进一步，将n2个等待uaddr的进程移到uaddr2的等待队列中（相当于也futex_wake它们，然后强制让它们futex_wait在uaddr2上面）。
+在futex_requeue的基础上，futex_cmp_requeue多了一个判断，仅当*uaddr与val相等时才执行操作，否则直接返回，让用户态去重试。
+对于pthread_cond_broadcast而言，不应该用futex_wake去唤醒所有等待者，而应该用futex_requeue唤醒一个等待者，然后将其他进程都转移到mutex的等待队列上去（随后再由mutex的unlock来逐个唤醒）。这与Java条件变量ContdtionObject中的实现是一样的。
+
+## 6. 总结
+从上面的分析中，要通过Java语言、JVM虚拟机及linux内核各个层级的配合，实现了ReentrantLock的功能：1）AQS（Java层面）实现锁状态及等待队列的管理，对JVM虚拟机的依赖仅仅是线程的阻塞及唤醒；2）在JVM中，每一个线程绑定一个Parker对象，Parker对象包含一个互斥锁和一个条件变量，线程的阻塞及唤醒就是通过互斥锁或条件变量来实现；3）在内核中，互斥锁和条件变量依赖Futex提供等待队列、阻塞及唤醒的功能，而在内核中要实现原子操作的功能，依赖cpu的CAS指令xchg。可见，基于硬件的CAS指令，操作系统构造了锁级别的等待队列Futex；基于Futex，glibc实现了锁、条件变量及信号量等同步机制；基于gblic中的同步机制，JVM封装了线程阻塞及唤醒的基本操作（UNSAFE.park及unpark）,Java语言实现了如ReentrantLock、Semaphore、ReentrantReadWriteLock、CountDownLatch及CyclicBarrier等高级锁结构，简化了上层业务编写同步及互斥的代码，极大提高了编程效率。
 
 
+**参考：**
 
+----
+[1]:https://github.com/farmerjohngit/myblog/issues/7
+[2]:http://kexianda.info/2017/08/16/%E5%B9%B6%E5%8F%91%E7%B3%BB%E5%88%97-4-%E4%BB%8EAQS%E5%88%B0futex-%E4%BA%8C-JVM%E7%9A%84Thread%E5%92%8CParker/
+[3]:https://yq.aliyun.com/articles/6043
+[4]:http://fanyilun.me/2016/11/19/Thread.interrupt()%E7%9B%B8%E5%85%B3%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/
+[5]:https://blog.csdn.net/luoyuyou/article/details/73498640
+[6]:https://blog.51cto.com/1038741/1939661
 
+[1. 关于同步的一点思考-下][1]
 
+[2. HotSpot的JavaThread和Parker][2]
+
+[3. linux futex浅析][3]
+
+[4. Thread.interrupt()相关源码分析][4]
+
+[5. pthread_mutex_lock实现][5]
+
+[6. pthread_cond_wait][6]
