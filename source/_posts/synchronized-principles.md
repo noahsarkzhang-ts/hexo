@@ -128,7 +128,7 @@ http://hg.openjdk.java.net/jdk8u/jdk8u/hotspot/file/9ce27f0a4683/src/share/vm/in
 // 设置Lock Record对象
 CASE(_monitorenter): {
     // lockee为锁对象
-	oop lockee = STACK_OBJECT(-1);
+    oop lockee = STACK_OBJECT(-1);
     // derefing's lockee ought to provoke implicit null check
     CHECK_NULL(lockee);
     // find a free monitor or one already allocated for this object
@@ -168,23 +168,19 @@ CASE(_monitorexit): {
         if ((most_recent)->obj() == lockee) {
             BasicLock* lock = most_recent->lock();
             markOop header = lock->displaced_header();
-			// 设置Lock Record对象obj为空，退出同步块
+
+            // 设置Lock Record对象obj为空，退出同步块
             most_recent->set_obj(NULL);
             if (!lockee->mark()->has_bias_pattern()) {
               bool call_vm = UseHeavyMonitors;
               // If it isn't recursive we either must swap old header or call the runtime
               if (header != NULL || call_vm) {
 
-			    // 轻量级锁逻辑：lockee不指向Lock Record对象，
-                // 说明锁升级为重量级锁
-			    // 否则将锁设置为无锁状态
-
+                // 轻量级锁逻辑：lockee不指向Lock Record对象，说明锁升级为重量级锁，否则将锁设置为无锁状态
                 if (call_vm || Atomic::cmpxchg_ptr(header, lockee->mark_addr(), lock) != lock) {
                   // restore object for the slow case
                   most_recent->set_obj(lockee);
-
-			    // 膨胀为重量级锁
-
+                  // 膨胀为重量级锁
                   CALL_VM(InterpreterRuntime::monitorexit(THREAD, most_recent), handle_exception);
                 }
               }
@@ -201,7 +197,7 @@ CASE(_monitorexit): {
 JVM的开发者发现在很多情况下，在Java程序运行时，同步块中的代码都是不存在竞争的，不同的线程交替的执行同步块中的代码。这种情况下，用重量级锁是没必要的。因此JVM引入了轻量级锁的概念。
 
 线程在执行同步块之前，JVM会先在当前的线程的栈帧中创建一个Lock Record，其包括一个用于存储对象头中的 mark word（官方称之为Displaced Mark Word）以及一个指向对象的指针。下图右边的部分就是一个Lock Record。
-![Lock-Record(/images/Lock-Record.png "Lock-Record")
+![Lock-Record](/images/Lock-Record.png "Lock-Record")
 
 **加锁过程：**
 
@@ -239,14 +235,14 @@ monitor对象包括三个链表：_cxq，_EntryList及_WaitSet，被阻塞的线
 void ATTR ObjectMonitor::EnterI (TRAPS) {
     Thread * Self = THREAD ;
     ... // 略
-   
-	// 封装ObjectWaiter对象
+
+    // 封装ObjectWaiter对象
     ObjectWaiter node(Self) ;
     Self->_ParkEvent->reset() ;
     node._prev   = (ObjectWaiter *) 0xBAD ;
     node.TState  = ObjectWaiter::TS_CXQ ;
 
-	// 加入到_cxq队首
+    // 加入到_cxq队首
     ObjectWaiter * nxt ;
     for (;;) {
         node._next = nxt = _cxq ;
@@ -284,7 +280,8 @@ void ATTR ObjectMonitor::EnterI (TRAPS) {
             if (RecheckInterval > 1000) RecheckInterval = 1000 ;
         } else {
             TEVENT (Inflated enter - park UNTIMED) ;
-			// 阻塞当前线程
+            
+            // 阻塞当前线程
             Self->_ParkEvent->park() ;
         }
 
