@@ -287,25 +287,278 @@ TransferQueue队列为空，构造QNode结点QNode1，结点内容如下：
 
 回到初始状态，如第1步所示，同时t4线程拿到t2线程的数据task2，t2线程被唤醒。
 
-
 ## 4. 代码分析
+现在以TransferStack为例，分析SynchronousQueue的流程。
+```java
+/**
+ * Puts or takes an item.
+ * put和take方法都调用这个方法
+ */
+@SuppressWarnings("unchecked")
+E transfer(E e, boolean timed, long nanos) {
+
+    SNode s = null; // constructed/reused as needed
+    // 判断请求的模型：e为null表示消费数据，不为空为消费数据
+    int mode = (e == null) ? REQUEST : DATA;
+
+    for (;;) {
+        SNode h = head;
+        // 1.  栈为空或请求与栈顶节点模式相同，根据情况入栈
+        if (h == null || h.mode == mode) {  // empty or same-mode
+            // 1.1 设置了超时且超时时间小于等于0，则直接返回不用等待
+            if (timed && nanos <= 0) {      // can't wait
+                if (h != null && h.isCancelled())
+                    casHead(h, h.next);     // pop cancelled node
+                else
+                    return null;  // 如果栈为空，offer操作直接返回null
+            // 1.2 没有设置超时或超时未到，则构建SNode，压入栈顶
+            } else if (casHead(h, s = snode(s, e, h, mode))) {
+                // 1.2.1 自旋等待或启用LockSupport.park阻塞调用线程
+                SNode m = awaitFulfill(s, timed, nanos);
+
+                // 1.2.2 被唤醒之后判断是否被取消
+                if (m == s) {               // wait was cancelled
+                    clean(s);
+                    return null;
+                }
+
+                // 1.2.3 将栈顶元素出栈
+                if ((h = head) != null && h.next == s)
+                    casHead(h, s.next);     // help s's fulfiller
+                
+                // 1.2.4 返回结果
+                return (E) ((mode == REQUEST) ? m.item : s.item);
+            }
+        // 2. 请求结点与栈顶结点是互补模式，则进行匹配操作
+        } else if (!isFulfilling(h.mode)) { // try to fulfill
+            // 2.1 如果栈顶结点已经被取消，则将栈顶结点出栈
+            if (h.isCancelled())            // already cancelled
+                casHead(h, h.next);         // pop and retry
+            
+            // 2.2 构建新结点，模式设置为FULFILLING，并压入栈顶
+            else if (casHead(h, s=snode(s, e, h, FULFILLING|mode))) {
+                for (;;) { // loop until matched or waiters disappear
+                    SNode m = s.next;       // m is s's match
+                    // 2.2.1 如果匹配的结点的为空，则将栈置空，然后重试
+                    if (m == null) {        // all waiters are gone
+                        casHead(s, null);   // pop fulfill node
+                        s = null;           // use new node next time
+                        break;              // restart main loop
+                    }
+                    SNode mn = m.next;
+                    // 2.2.2 两个结点尝试匹配，如果匹配成功，
+                    // 则唤醒被匹配结点对应的线程
+                    if (m.tryMatch(s)) {
+
+                        // 2.2.2.1 匹配成功之后，将栈顶两个节点出栈，并返回结果
+                        casHead(s, mn);     // pop both s and m
+                        return (E) ((mode == REQUEST) ? m.item : s.item);
+                    } else                  // lost match
+                        s.casNext(m, mn);   // help unlink
+                }
+            }
+        // 3. 栈顶已经存在一个FULFILLING模式的结点，则帮助该结点完成匹配，
+        //    然后自己再进行匹配
+        } else {                            // help a fulfiller
+            SNode m = h.next;               // m is h's match
+            // 3.1 跟2.1一样
+            if (m == null)                  // waiter is gone
+                casHead(h, null);           // pop fulfilling node
+            else {
+                SNode mn = m.next;
+                // 3.2 尝试将栈顶两个元素进行匹配，
+                if (m.tryMatch(h))          // help match
+                    casHead(h, mn);         // pop both h and m
+                else                        // lost match
+                    h.casNext(m, mn);       // help unlink
+            }
+        }
+    }
+}
+```
+
+代码主要分为三种情况：
+1. 如果当前的栈是空的，或者包含与请求节点模式相同的节点，那么就将这个请求的节点作为新的栈顶节点，等待被下一个请求的节点匹配，最后会返回匹配节点的数据或者null，如果被取消则会返回null。
+
+2. 如果当前栈不为空，并且请求的节点和当前栈顶节点模式互补，那么将这个请求的节点的模式变为FULFILLING，然后将其压入栈中，和互补的节点进行匹配，完成匹配之后将两个节点一起弹出，并且返回交易的数据。
+
+3. 如果栈顶已经存在一个模式为FULFILLING的节点，说明栈顶的节点正在进行匹配，那么就帮助这个栈顶节点快速完成匹配，然后继续匹配。
+
+主要方法说明：
+1. casHead : 通过CAS操作将nh设置为新的栈顶结点；
+```java
+boolean casHead(SNode h, SNode nh) {
+    return h == head &&
+        UNSAFE.compareAndSwapObject(this, headOffset, h, nh);
+}
+```
+2. awaitFulfill : 自旋或阻塞一个节点，直到找到一个匹配的结点；
+```java
+SNode awaitFulfill(SNode s, boolean timed, long nanos) {
+     // 计算超时时间
+    final long deadline = timed ? System.nanoTime() + nanos : 0L;
+    Thread w = Thread.currentThread();
+    int spins = (shouldSpin(s) ?
+                 (timed ? maxTimedSpins : maxUntimedSpins) : 0);
+    for (;;) {
+        if (w.isInterrupted())
+            s.tryCancel();
+        SNode m = s.match;
+        if (m != null)
+            return m;
+        if (timed) {
+            nanos = deadline - System.nanoTime();
+            if (nanos <= 0L) {
+                s.tryCancel();
+                continue;
+            }
+        }
+        // 自旋
+        if (spins > 0)
+            // 如果是cpu是多核，则进行自旋
+            spins = shouldSpin(s) ? (spins-1) : 0;
+        else if (s.waiter == null)
+            s.waiter = w; // establish waiter so can park next iter
+        // 如果没有设置超时，则直接阻塞调用者线程
+        else if (!timed)
+            LockSupport.park(this);
+        // 如果设置超时时间，则设置阻塞时间
+        else if (nanos > spinForTimeoutThreshold)
+            LockSupport.parkNanos(this, nanos);
+    }
+}
+```
+
+3. tryMatch : 尝试匹配结点，如果匹配成功则唤醒结点对应的线程
+```java
+boolean tryMatch(SNode s) {
+    if (match == null &&
+        UNSAFE.compareAndSwapObject(this, matchOffset, null, s)) {
+        Thread w = waiter;
+        if (w != null) {    // waiters need at most one unpark
+            waiter = null;
+            LockSupport.unpark(w);
+        }
+        return true;
+    }
+    return match == s;
+}
+```
 
 ## 5. 线程池应用
+SynchronousQueue的一个使用场景是线程池，使用它的目的就是保证“对于提交的任务，如果有空闲线程，则使用空闲线程来处理；否则新建一个线程来处理任务”。
+```java
+public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
+
+    // 核心线程数为0，空闲时间为60S，最大线程数为整数的最大值。
+    return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                  60L, TimeUnit.SECONDS,
+                                  new SynchronousQueue<Runnable>(),
+                                  threadFactory);
+}
+```
+
+首先看下线程池的任务提交流程：
+```java
+public void execute(Runnable command) {
+    if (command == null)
+        throw new NullPointerException();
+    
+    int c = ctl.get();
+
+    // 1. 第1步
+    if (workerCountOf(c) < corePoolSize) {
+        if (addWorker(command, true))
+            return;
+        c = ctl.get();
+    }
+    // 2. 第2步
+    if (isRunning(c) && workQueue.offer(command)) {
+        int recheck = ctl.get();
+        if (! isRunning(recheck) && remove(command))
+            reject(command);
+        else if (workerCountOf(recheck) == 0)
+            addWorker(null, false);
+    }
+    // 3. 第3步
+    else if (!addWorker(command, false))
+        reject(command);
+}
+```
+提交任务有在三个步骤：
+1. 如果当前工作线程数小于“核心线程数”，则创建一个工作线程来执行task，在这里，由于“核心线程数”等于0，会跳过这个步骤，执行第2步；
+2. 将任务加入到工作队列（SynchronousQueue）中，如果添加成功表示将任务交付给工作线程了，如果没有成功则执行第3步；
+3. 如果加入到工作队列失败，会尝试创建一个工作线程来执行任务，如果工作线程数小于最大线程数（Integer.MAX_VALUE）,正常情况下，工作线程会创建成功，如果创建失败则会执行“拒绝策略”。
+
+结合SynchronousQueue，我们来分析下线程池的执行流程：
+1. 由于“核心线程数”等于0，会跳过第1个步骤；
+2. 在第2步中，提交任务采用的是offer操作，在上面的内容我们提到，offer尝试将数据（任务）交给匹配的线程：
+- 如果有匹配的工作者线程，交付成功；
+- 如果匹配不成功，返回false，不会阻塞调用者线程；
+在这里分为两种情况，1）刚开始，没有工作线程，SynchronousQueue队列为空，offer操作失败，继续执行第3步；2）执行一段时间后，SynchronousQueue中有工作线程，数据交付成功，直接返回；
+3. 交付失败后，会尝试新建一个工作线程来执行任务，由于最大线程数设置为Integer.MAX_VALUE，线程都会创建成功，而不会被拒绝。在这里，线程数没有做限制，存在线程创建过多导致内存溢出的风险。
+
+分析了提交任务（offer）,再来看获取任务的流程，获取任务的流程在工作线程的执行代码中，工作线程一直会从SynchronousQueue中获取任务，如果空闲时间超过60S则会回收该工作线程。我们来看下工作线程中获取任务的代码：
+```java
+private Runnable getTask() {
+    boolean timedOut = false; // Did the last poll() time out?
+
+    for (;;) {
+        int c = ctl.get();
+        int rs = runStateOf(c);
+
+        // Check if queue empty only if necessary.
+        if (rs >= SHUTDOWN && (rs >= STOP || workQueue.isEmpty())) {
+            decrementWorkerCount();
+            return null;
+        }
+
+        int wc = workerCountOf(c);
+
+        // Are workers subject to culling?
+        boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
+
+        if ((wc > maximumPoolSize || (timed && timedOut))
+            && (wc > 1 || workQueue.isEmpty())) {
+            if (compareAndDecrementWorkerCount(c))
+                return null;
+            continue;
+        }
+
+        try {
+            Runnable r = timed ?
+                workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
+                workQueue.take();
+            if (r != null)
+                return r;
+            timedOut = true;
+        } catch (InterruptedException retry) {
+            timedOut = false;
+        }
+    }
+}
+```
+
+获取任务的关键代码主要是这行语句：
+```java
+workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS)
+```
+这行语句有如下功能：获取任务，如果没有匹配的操作，则会阻塞60S，这里的60S就是线程空闲时间；如果有匹配的操作，则直接获取交付的数据。在这里，如果是超时返回的话，该工作线程会退出，且工作线程的数量会减1。
+
+通过上面的分析，我们可以看出，提交任务使用不阻塞的offer方法，获取任务使用带超时的阻塞方法poll。不管offer成功与否，总能保证有工作线程去马上去执行任务，如果没有可复用的工作线程，则会创建一个新的工作线程来执行，另外SynchronousQueue只会阻塞工作线程，即队列中只会有工作线程，不会有提交任务的线程。
+
 
 ## 6. 总结
+这篇文章分析了SynchronousQueue的底层数据结构及在线程池中的运用，并对相关代码进行了分析，希望能够对想了解SynchronousQueue的同学有所帮助。
 
 **参考：**
 
 ----
 [1]:https://www.jianshu.com/p/376d368cb44f
-[2]:https://blog.csdn.net/boling_cavalry/article/details/77793224
-[3]:https://tech.meituan.com/2018/11/15/java-lock.html
-[4]:https://blog.csdn.net/iter_zc/article/details/41847887
+[2]:http://cmsblogs.com/?p=2418
 
 [1. Java阻塞队列SynchronousQueue详解][1]
 
-[2. Java的wait()、notify()学习三部曲之一：JVM源码分析][2]
+[2. 【死磕Java并发】—–J.U.C之阻塞队列：SynchronousQueue][2]
 
-[3. 不可不说的Java“锁”事][3]
 
-[4. 聊聊JVM（六）理解JVM的safepoint][4]
