@@ -40,6 +40,26 @@ Work Stealing算法是Fork/Join框架的核心思想：
 
 ## 3. 数据结构
 ### 3.1 ForkJoinPool
+ForkJoinPool中的几个关键字段如下：
+```java
+volatile long ctl;                   // main pool control
+volatile int runState;               // lockable status
+final int config;                    // parallelism, mode
+int indexSeed;                       // to generate worker index
+volatile WorkQueue[] workQueues;     // main registry
+```
+
+1. ctl字段
+ctl有64位，分成4组各16位，代表了不同的状态，在ForkJoinPool中是一个很重要的字段，很多控制逻辑都要根据ctl来完成，如下图所示：
+![ctl](/images/ctl.jpg "ctl")
+- AC：活跃线程的数量，初始化-parallelism；
+- TC：所有线程的数量，初始化-parallelism；
+- SS：表示空闲线程栈（Treiber stack）栈顶元素的版本计算和状态；
+- ID：表示空闲线程栈（Treiber stack）栈顶元素在workQueues数组中的下标；
+
+parallelism表示ForkJoinPool的最大线程数，其最大值由MAX_CAP(32767)限定，一般情况下等于cpu的核数（Runtime.getRuntime().availableProcessors()），也可以由用户传入。
+
+在ForkJoinPool中，AC和TC初始化parallelism负值，
 
 ### 3.2 WorkQueue
 
