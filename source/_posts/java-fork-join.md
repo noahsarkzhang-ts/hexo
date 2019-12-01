@@ -49,19 +49,237 @@ int indexSeed;                       // to generate worker index
 volatile WorkQueue[] workQueues;     // main registry
 ```
 
-1. ctl字段
+#### 3.1.1 ctl字段
 ctl有64位，分成4组各16位，代表了不同的状态，在ForkJoinPool中是一个很重要的字段，很多控制逻辑都要根据ctl来完成，如下图所示：
 ![ctl](/images/ctl.jpg "ctl")
 - AC：活跃线程的数量，初始化-parallelism；
 - TC：所有线程的数量，初始化-parallelism；
-- SS：表示空闲线程栈（Treiber stack）栈顶元素的版本计算和状态；
+- SS：表示空闲线程栈（Treiber stack）栈顶元素的版本和状态；
 - ID：表示空闲线程栈（Treiber stack）栈顶元素在workQueues数组中的下标；
 
-parallelism表示ForkJoinPool的最大线程数，其最大值由MAX_CAP(32767)限定，一般情况下等于cpu的核数（Runtime.getRuntime().availableProcessors()），也可以由用户传入。
+parallelism表示ForkJoinPool的最大线程数，其最大值由MAX_CAP(32767)限定，默认情况下等于cpu的核数（Runtime.getRuntime().availableProcessors()），要改变这个值也可以通过构造函数设置。
 
-在ForkJoinPool中，AC和TC初始化parallelism负值，
+为了方便运算，AC和TC初始化parallelism负值，当AC和TC为负数时，表示线程数未达到最大线程数，可以新建线程。SP是ctl的低32位，可通过sp=(int)ctl取到，如果是否零的情况下，表示有空闲线程。
+
+在ForkJoinPool中，线程是绑定在WorkQueue上的，即一个线程必然有绑定WorkQueue（但WorkQueue不一定绑定线程，外部线程提交任务创建的WorkQueue绑定的线程为null）。ID存放的实际是空闲线程对应的WorkQueue在WorkQueue\[\]数组中的下标，后面为了描述的方便，统一说成是空闲线程的下标。下一个空闲线程（其实保存的也是WorkQueue\[\]的下标）保存在WorkQueue的stackPred字段中，讲到WorkQueue时，我们再对空闲线程栈进行深入描述。
+
+ForkJoinPool中定义的常量字段：
+```java
+// Bounds
+static final int SMASK        = 0xffff;        // short bits == max index
+static final int MAX_CAP      = 0x7fff;        // max #workers - 1
+static final int EVENMASK     = 0xfffe;        // even short bits
+static final int SQMASK       = 0x007e;        // max 64 (even) slots
+
+// Masks and units for WorkQueue.scanState and ctl sp subfield
+static final int SCANNING     = 1;             // false when running tasks
+static final int INACTIVE     = 1 << 31;       // must be negative
+static final int SS_SEQ       = 1 << 16;       // version count
+
+// Mode bits for ForkJoinPool.config and WorkQueue.config
+static final int MODE_MASK    = 0xffff << 16;  // top half of int
+static final int LIFO_QUEUE   = 0;
+static final int FIFO_QUEUE   = 1 << 16;
+static final int SHARED_QUEUE = 1 << 31;       // must be negative
+
+// Lower and upper word masks
+private static final long SP_MASK    = 0xffffffffL;
+private static final long UC_MASK    = ~SP_MASK;
+
+// Active counts
+private static final int  AC_SHIFT   = 48;
+private static final long AC_UNIT    = 0x0001L << AC_SHIFT;
+private static final long AC_MASK    = 0xffffL << AC_SHIFT;
+
+// Total counts
+private static final int  TC_SHIFT   = 32;
+private static final long TC_UNIT    = 0x0001L << TC_SHIFT;
+private static final long TC_MASK    = 0xffffL << TC_SHIFT;
+private static final long ADD_WORKER = 0x0001L << (TC_SHIFT + 15); // sign 48位是TC的符号位
+```
+
+1、ctl的初始化(ForkJoinPool)：AC=TC=-parallelism,SS=ID=0
+```java
+this.config = (parallelism & SMASK) | mode;
+long np = (long)(-parallelism); // offset ctl counts
+this.ctl = ((np << AC_SHIFT) & AC_MASK) | ((np << TC_SHIFT) & TC_MASK);
+```
+假定parallelism值为4，np为-4，16进制为FFFF FFFF FFFF FFFC，np << AC_SHIFT 表示np左移48（AC_SHIFT）位，得到FFFC 0000 0000 0000，再与AC_MASK(0XFFFF 0000 0000 0000)进行&（与）操作，((np << AC_SHIFT) & AC_MASK)得到的值为FFFC 0000 0000 0000，同理，((np << TC_SHIFT) & TC_MASK)，得到的值为0000 FFFC 0000 0000，最后再将这两个值进行|（或）操作，得到的值为FFFC FFFC 0000 0000，即将AC，TC赋值为-4赋值，SS和ID为0。
+
+2、添加线程(tryAddWorker)：AC=TC=+1
+```java
+long nc = ((AC_MASK & (c + AC_UNIT)) |
+           (TC_MASK & (c + TC_UNIT)));
+```
+添加线程的时候，会将AC和TC都加1，其中c为当前CTL的值，新值为nc。假定c为FFFC FFFC 0000 0000，c + AC_UNIT 可以表示为FFFC FFFC 0000 0000 + 0001 0000 000 000，即在TC部分加1，得到的值为FFFD FFFC 0000 0000，再与AC_MASK(FFFF 0000 0000 0000)进行&(与操作)，(AC_MASK & (c + AC_UNIT))的值为FFFD 0000 0000 0000。同理TC_MASK & (c + TC_UNIT))为0000 FFFD 0000 0000，最后将这个值进行|(或)操作，得到FFFD FFFD 0000 0000。
+
+3、睡眠线程(scan)：AC:-1,ID=new ID
+```java
+int ss = w.scanState; // w为WorkQueue的变量
+int ns = ss | INACTIVE;       // try to inactivate
+long nc = ((SP_MASK & ns) |
+           (UC_MASK & ((c = ctl) - AC_UNIT)));
+w.stackPred = (int)c;         // hold prev stack top
+```
+ss的值为WorkQueue的scanState，scanState初始值为WorkQueue在WorkQueue\[\]中的下标（如果是外部线程提交任务产生的WorkQueue，scanState为INACTIVE），假定scanState为3，c为FFFD FFFD 0000 0000。ss | INACTIVE(0X8000 0000)等于8000 0011，SP_MASK & ns等于0000 0000 8000 0011，(UC_MASK & ((c = ctl) - AC_UNIT))等于FFFC FFFD 0000 0000，最后nc等于FFFC FFFD 8000 0011，即将空闲线程的下标设置在ID上。
+
+4、唤醒空闲线程(signalWork)：AC:+1,ID=v.stackPred
+```java
+// 以下代码进行了精简，与signalWork方法中的顺序不一定一致。
+long c = ctl;
+int sp = (int)c;
+int i = sp & SMASK; // 空闲线程的下标
+WorkQueue v = ws[i]; // 空闲线程绑定的WorkQueue
+long nc = (UC_MASK & (c + AC_UNIT)) | (SP_MASK & v.stackPred);
+```
+假定c为FFFC FFFD 8000 0011,v.stackPred为5。将c的类型强制转化为int后，sp得到了c低32位的值，即SS与ID。sp与SMASK(0X0000 FFFF)得到低16位的值，即得到下标值(3)。再根据下标i得到对应的WorkQueue v，取到下一个空闲线程的下标(5)，并将这个下标设置到新ctl中的ID中。
+
+c + AC_UNIT表示AC加1,(UC_MASK & (c + AC_UNIT))得到的值为FFFD FFFD 0000 0000，SP_MASK & v.stackPred为0000 0000 0000 0101，最后这两个值进行|(或)操作，nc的值为FFFE FFFF 0000 0101。
+
+#### 3.1.2 config
+```java
+// 常量
+static final int LIFO_QUEUE   = 0;
+static final int FIFO_QUEUE   = 1 << 16;
+
+boolean asyncMode = false; // 默认为LIFO
+int mode = asyncMode ? FIFO_QUEUE : LIFO_QUEUE,
+this.config = (parallelism & SMASK) | mode;
+```
+config主要是存放两部分信息：1) parallelism,ForkJoinPool线程数；2) ForkJoinPool同步或异步模式，同步用LIFO模式，异步用FIFO，默认为LIFO。parallelism存放在int的低16位，LIFO_QUEUE为0，两者进行|（或）操作，还是parallelism本身。如果模式是FIFO_QUEUE的话，则将int第17位设置为1，假定parallelism为4，最后|（操作）之后，config的值为0X0001 0004。
+
+#### 3.1.3 workQueues
+workQueues是ForkJoinPool中非常重要的数据结构，存放多个工作队列WorkQueue，工作队列主要有两种类型：1）外部线程提交一次ForkJoinTask任务，都会生成一个WorkQueue，用来存放提交的的任务（一次可提交多个任务），该队列不属于任何一个线程，会等待其它线程来偷取(Work Stealing)任务，这类WorkQueue存放在workQueues的偶数下标处；2）新增一个工作线程WorkerThread时，都会生成一个WorkQueue，用来存放该线程需要执行的子任务，该WorkQueue绑定在工作线程上，这类WorkQueue存放在workQueues的奇数下标处。
+
+1、workQueues初始化
+```java
+// create workQueues array with size a power of two
+int p = config & SMASK; // ensure at least 2 slots
+int n = (p > 1) ? p - 1 : 1;
+n |= n >>> 1; n |= n >>> 2;  n |= n >>> 4;
+n |= n >>> 8; n |= n >>> 16; n = (n + 1) << 1;
+workQueues = new WorkQueue[n];
+```
+p存放parallelism的值，经过一系列的符号右移及或操作之后，保证n为奇数，最后对n加1，再左移1位，得到一个2的倍数的值，一般情况下workQueues等于parallelism的2倍。
+
+2、提交任务的WorkQueue
+```java
+// SQMASK常量
+static final int SQMASK  = 0x007e;   // max 64 (even) slots
+
+int m = ws.length - 1; // m等于workQueues长度减一，是一个奇数
+
+int k = r & m & SQMASK;
+WorkQueue q = new WorkQueue(this, null);
+q.hint = r; // r是一个随机值， r = ThreadLocalRandom.getProbe()
+q.config = k | SHARED_QUEUE; // k是存放在workqueue[]中的位置
+q.scanState = INACTIVE; // 初始化scanState的状态
+
+if (rs > 0 &&  (ws = workQueues) != null &&
+    k < ws.length && ws[k] == null)
+    ws[k] = q;  // else terminated
+```
+r是一个随机数，m是数组长度减一，r & m 操作得到一个介于0~m的随机数字。SQMASK是数组的最大值64，其最低位是0，进行与操作，最低位必然是0，从而保证r & m & SQMASK的值是一个介于0~m的随机偶数。k是一个随机数，主要是为了减少插入位置的冲突。
+
+3、工作线程的WorkQueue
+```java
+WorkQueue w = new WorkQueue(this, wt);
+int i = 0;                                    // assign a pool index
+int mode = config & MODE_MASK;
+int rs = lockRunState();
+try {
+    WorkQueue[] ws; int n;                    // skip if no array
+    if ((ws = workQueues) != null && (n = ws.length) > 0) {
+        int s = indexSeed += SEED_INCREMENT;  // unlikely to collide
+        int m = n - 1;
+        i = ((s << 1) | 1) & m;               // odd-numbered indices
+        if (ws[i] != null) {                  // collision
+            int probes = 0;                   // step by approx half n
+            int step = (n <= 4) ? 2 : ((n >>> 1) & EVENMASK) + 2;
+            while (ws[i = (i + step) & m] != null) {
+                if (++probes >= n) {
+                    workQueues = ws = Arrays.copyOf(ws, n <<= 1);
+                    m = n - 1;
+                    probes = 0;
+                }
+            }
+        }
+        w.hint = s;                           // use as random seed
+        w.config = i | mode;
+        w.scanState = i;                      // publication fence
+        ws[i] = w;
+    }
+} finally {
+    unlockRunState(rs, rs & ~RSLOCK);
+}
+```
+重点看以下代码：
+```java
+WorkQueue w = new WorkQueue(this, wt);
+
+n = ws.length
+int s = indexSeed += SEED_INCREMENT;  // unlikely to collide
+int m = n - 1;
+i = ((s << 1) | 1) & m;
+
+ws[i] = w;
+```
+s是一个随机值， ((s << 1) | 1)表达式得到一个随机的奇数，即最低为1。再与m(也是一个奇数)进行&(与)操作，得到一个介于0~m(包括m)的的奇数。从而保证工作线程的WorkQueue存放在workQueues的奇数位置。
+
+#### 3.1.4 indexSeed
+```java
+/**
+* Increment for seed generators. See class ThreadLocal for
+* explanation.
+*/
+private static final int SEED_INCREMENT = 0x9e3779b9;
+
+int s = indexSeed += SEED_INCREMENT;
+```
+indexSeed主要是用来随机生成WorkQueue的下标。
 
 ### 3.2 WorkQueue
+
+```java
+// Instance fields
+volatile int scanState;    // versioned, <0: inactive; odd:scanning
+int stackPred;             // pool stack (ctl) predecessor
+int nsteals;               // number of steals
+int hint;                  // randomization and stealer index hint
+int config;                // pool index and mode
+volatile int qlock;        // 1: locked, < 0: terminate; else 0
+volatile int base;         // index of next slot for poll
+int top;                   // index of next slot for push
+ForkJoinTask<?>[] array;   // the elements (initially unallocated)
+final ForkJoinPool pool;   // the containing pool (may be null)
+final ForkJoinWorkerThread owner; // owning thread or null if shared
+volatile Thread parker;    // == owner during call to park; else null
+volatile ForkJoinTask<?> currentJoin;  // task being joined in awaitJoin
+volatile ForkJoinTask<?> currentSteal; // mainly used by helpStealer
+```
+
+```java
+/**
+ * Capacity of work-stealing queue array upon initialization.
+ * Must be a power of two; at least 4, but should be larger to
+ * reduce or eliminate cacheline sharing among queues.
+ * Currently, it is much larger, as a partial workaround for
+ * the fact that JVMs often place arrays in locations that
+ * share GC bookkeeping (especially cardmarks) such that
+ * per-write accesses encounter serious memory contention.
+ */
+static final int INITIAL_QUEUE_CAPACITY = 1 << 13; // 8192
+
+/**
+ * Maximum size for queue arrays. Must be a power of two less
+ * than or equal to 1 << (31 - width of array entry) to ensure
+ * lack of wraparound of index calculations, but defined to a
+ * value a bit less than this to help users trap runaway
+ * programs before saturating systems.
+ */
+static final int MAXIMUM_QUEUE_CAPACITY = 1 << 26; // 64M
+```
+
 
 ### 3.3 ForkJoinWorkerThread
 
