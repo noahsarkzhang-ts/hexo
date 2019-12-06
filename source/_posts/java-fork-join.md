@@ -239,7 +239,7 @@ int s = indexSeed += SEED_INCREMENT;
 indexSeed主要是用来随机生成WorkQueue的下标。
 
 ### 3.2 WorkQueue
-
+WorkQueue是存储ForkJoinTask的容器，也是Work-Stealing依赖的数据结构。外部提交新的ForkJoinTask任务，会新建一个WorkQueue，将任务存放到WorkQueue的ForkJoinTask数组中，最后将该WorkQueue存放到ForkJoinPool对象的workQueues数组中（存放到偶数下标处），新的任务会被工作线程窃取。另外一方面工作线程中产生的子任务会存放到该线程绑定的工作队列中。下面是WorkQueue的一些关键字段。
 ```java
 // Instance fields
 volatile int scanState;    // versioned, <0: inactive; odd:scanning
@@ -257,36 +257,69 @@ volatile Thread parker;    // == owner during call to park; else null
 volatile ForkJoinTask<?> currentJoin;  // task being joined in awaitJoin
 volatile ForkJoinTask<?> currentSteal; // mainly used by helpStealer
 ```
+#### 3.2.1 stackPred
+通过ctl的ID字段与stackPred可以形成一个空闲线程列表栈，栈首存放在ID字段中，stackPred存放的是下一个空闲线程的下标，如下图所示：
+![idle-thread-list](/images/idle-thread-list.jpg "idle-thread-list")
+
+#### 3.2.2 array,base,top
+这三个字段主要是用来存取ForkJoinTask任务的，array是一个ForkJoinTask类型的数组，以双端队列的方式提供服务；base是队列的底部，外部线程窃取任务就是从base开始；top是队列的顶部，工作队列绑定的线程push/pop都是在top上操作。这三个值的初始状态如下图所示：
+![workqueue-array-init](/images/workqueue-array-init.jpg "workqueue-array-init")
+
+array的初始大小为8192，最大为64M，base及top默认值为初始大小的一半4096，代码定义如下：
 
 ```java
-/**
- * Capacity of work-stealing queue array upon initialization.
- * Must be a power of two; at least 4, but should be larger to
- * reduce or eliminate cacheline sharing among queues.
- * Currently, it is much larger, as a partial workaround for
- * the fact that JVMs often place arrays in locations that
- * share GC bookkeeping (especially cardmarks) such that
- * per-write accesses encounter serious memory contention.
- */
-static final int INITIAL_QUEUE_CAPACITY = 1 << 13; // 8192
+static final int INITIAL_QUEUE_CAPACITY = 1 << 13; // 8192 数组初始大小
+static final int MAXIMUM_QUEUE_CAPACITY = 1 << 26; // 64M 数组最大值
 
-/**
- * Maximum size for queue arrays. Must be a power of two less
- * than or equal to 1 << (31 - width of array entry) to ensure
- * lack of wraparound of index calculations, but defined to a
- * value a bit less than this to help users trap runaway
- * programs before saturating systems.
- */
-static final int MAXIMUM_QUEUE_CAPACITY = 1 << 26; // 64M
+base = top = INITIAL_QUEUE_CAPACITY >>> 1; // base及top默认值
 ```
 
+工作窃取时的队列如下所示:
+![workqueue-array](/images/workqueue-array.jpg "workqueue-array")
+
+#### 3.2.2 currentSteal,currentJoin
+currentSteal表示当前工作线程从外部工作队列中窃取到的任务，currentJoin表示当前工作线程处在join中的任务，通过这两个参数的配合使用，可以将递归类型的任务分布在多个工作线程执行，同时父级任务线程可以帮子任务或孙子任务线程执行任务，它们的关系如下图所示：
+![workqueue-join-steal](/images/workqueue-join-steal.jpg "workqueue-join-steal")
+
+wt1线程当前join的任务就是wt2线程窃取的任务，当wt1线程队列没有任务的时候，它会找到窃取它任务的wt2线程，发现wt2线程的任务队列为空，再去查找窃取wt2线程任务的wt3线程，发现wt3线程队列不为空，则窃取wt3线程工作队列base位置的任务t-1-2-1，并执行它。
 
 ### 3.3 ForkJoinWorkerThread
+ForkJoinWorkerThread对象继承自Thread对象，是任务执行的实体，继承关系如下图所示：
+![ForkJoinWorkerThread](/images/ForkJoinWorkerThread.jpg "ForkJoinWorkerThread")
+
+ForkJoinWorkerThread有内部有两个字段，主要是保存了WorkQueue及ForkJoinPool的引用，定义如下所示：
+```java
+final ForkJoinPool pool;                // the pool this thread works in
+final ForkJoinPool.WorkQueue workQueue; // work-stealing mechanics
+```
 
 ### 3.4 ForkJoinTask
-
+ForkJoinTask封装了计算的流程，实现了fork及join方法，它是分治算法中两个核心的方法，这两个方法我们在后面的部分详细介绍。ForkJoinTask有两个子类：RecursiveTask和ForkJoinTask，它们的区别主要是计算有没有返回值。这两个子类都提供了一个抽象方法compute，由具体的业务算法来实现，主要包括子任务的划分及结果的合并逻辑，其核心思想如下所示：
+```
+if(任务很小）{
+    直接计算得到结果
+}else{
+    分拆成N个子任务
+    调用子任务的fork()进行计算
+    调用子任务的join()合并计算结果
+}
+```
 
 ## 4. 工作流程
+### 4.1 提交任务
+![invoke-task](/images/invoke-task.jpg "invoke-task")
+
+### 4.2 fork流程
+![fork-flow](/images/fork-flow.jpg "fork-flow")
+
+#### 4.2.1 激活工作线程
+![singal-worker](/images/singal-worker.jpg "singal-worker")
+
+### 4.3 join流程
+![join-flow](/images/join-flow.jpg "join-flow")
+
+#### 4.3.1 工作窃取流程
+![work-stealing-flow](/images/work-stealing-flow.jpg "work-stealing-flow")
 
 ## 5. 实例
 
