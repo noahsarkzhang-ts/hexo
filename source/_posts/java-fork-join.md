@@ -12,11 +12,10 @@ categories:
 ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：
 ![fork-join](/images/fork-join.jpg "fork-join")
 
-- ForkJoinPool：
-- WorkQueue：
-- ForkJoinWorkerThread：
-- ForkJoinTask：
-
+- ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。
+- WorkQueue：工作队列，是任务存储的容器，也是实现Work-Stealing的关键数据结构。
+- ForkJoinWorkerThread：工作线程，是任务的执行单元。
+- ForkJoinTask：封装业务的执行逻辑，包括任务fork及join流程。
 
 ## 2. 核心思想
 ForkJoinPool的两大核心就是分而治之(Divide and conquer)和工作窃取(Work Stealing)算法，下面先对两种算法作一个介绍，后面将会具体细节做说明，这部分内容来自 [holmofy][3]，作者进行了很好的总结。
@@ -309,22 +308,219 @@ if(任务很小）{
 ### 4.1 提交任务
 ![invoke-task](/images/invoke-task.jpg "invoke-task")
 
+流程：
+1） 提交线程
+- 提交线程（不是工作线程）构建ForkJoinTask，提交给ForkJoinPool执行，如通过invoke方法；
+- 如果ForkJoinPool中的工作队列数组workQueues没有创建，则创建该数组，默认为parallelism的2倍；
+- 创建工作队列q，并将该队列添加到workQueues的偶数下标处；
+- 创建工作队列q的任务数组array，默认大小了8192，base和top的初始值为数组大小的一半，即4096；
+- 提交线程会走到“激活工作线程”的流程，该流程会在后面的内容讲到。
+
+2）工作线程
+- 启动工作线程wt，扫描ForkJoinPool的workQueues数组，窃取一个ForkJoinTask去执行；
+- 随机生成一个在数组大小范围内的奇数，作为扫描的起始位置，这样可以避免多个线程同时从一个位置扫描，减少竞争；
+- 遍历工作队列workQueues数组，如果工作队列中有任务，则从其base位置处取得任务t，如果该队列中还有其它任务，则“激活工作线程”，让其它工作线程来窃取其它任务；
+- 设置工作线程wt的currentSteal（在工作队列中）的值为t，表示工作窃取了任务t；
+- 执行任务t；
+- 任务执行结束，将currentSteal设置为null；
+- 遍历工作队列workQueues数组，如果都没有找到任务，则会将当前工作线程加入到空闲线程列表中，并睡眠当前工作线程等待激活。
+
 ### 4.2 fork流程
 ![fork-flow](/images/fork-flow.jpg "fork-flow")
+
+流程：
+- 执行fork的线程可以是外部线程，也可以是工作线程，这两种方式处理方法不一样；
+- 判断线程的类型是否ForkJoinWorkerThread；
+- 如果是ForkJoinWorkerThread类型，则将任务提交到工作线程的工作队列中，执行“激活工作线程”流程；
+- 如果不是ForkJoinWorkerThread类型，则将任务提交到commonForkJoinPool中，与“提交任务”流程是一样的。
 
 #### 4.2.1 激活工作线程
 ![singal-worker](/images/singal-worker.jpg "singal-worker")
 
+流程：
+- 设置工作队列数组为ws,当前工作队列为q；
+- 判断当前活跃线程是否小于parallelim，如果已经大于parallelim，则直接退出；
+- 再判断是否有空闲线程，有空闲线程则唤醒空闲线程；
+- 如果没有空闲线程，同时线程总数小于parallelim，则创建一个新的工作线程wt来执行任务；
+- 建立线程相关的工作队列w，建立线程与队列的关联关系，并将工作队列添加到数组ws的奇数下标处；
+- 启动wt线程。
+
 ### 4.3 join流程
 ![join-flow](/images/join-flow.jpg "join-flow")
+
+流程：
+- 执行join的任务为task，执行join方法的线程为wt，wt的工作队列为w；
+- 判断task任务是否已经结束，如果已经结束，直接返回结果即可；
+- task没有结束，则判断wt的类型，是否为ForkJoinWorkerThread；
+- 如果wt不是ForkJoinWorkerThread类型的线程，则说明是外部线程执行了join方法，则阻塞该线程，等待任务结束后被唤醒；
+- 如果wt是ForkJoinWorkerThread类型的线程，则分为三种情况；
+- 1）task在w的栈首位置，则直接将task出栈，执行task即可；
+- 2）task在w中，但不在栈首位置，处于w的中间位置，则将w中的task转换为空任务（空操作，因为该任务已经被提前执行），执行task；
+- 3）task不在w中，表示该任务已经被其它工作线程窃取了，此时如果w的队列为空，则执行“工作窃取流程”，帮助窃取任务的线程，让它更快结束；
+- 在一个步骤中，如果w的队列不为空，则睡眠线程wt，在睡眠之前，作为补偿，会创建一个新的工作线程或唤醒一个空闲线程来执行任务。
 
 #### 4.3.1 工作窃取流程
 ![work-stealing-flow](/images/work-stealing-flow.jpg "work-stealing-flow")
 
+流程：
+- 设置task为被窃取的任务，w为当前工作线程的工作队列；
+- 遍历工作队列数组，找到窃取task任务的工作线程,其工作队列为v，判断条件为工作线程的v.cureentSteal==task; 
+- 判断工作队列v是否为空；
+- 如果v不为空，则从工作队列v的base位置窃取任务t，在当前线程w中执行任务t，并设置w.currentSteal=t，直到v为空；
+- 如果v为空，则说明任务被其它线程窃取，通过其currentJoin字段找到被窃取的任务，并将该字段设置为task的值，从第一步重新执行，从而帮助儿子任务、孙子任务等等后代任务快速结束。
+
 ## 5. 实例
+我们通过ForkJoinPool框架实现快速排序算法，来展示将在一个线程中执行的递归算法转化为在多个线程中“分治”执行的算法。维基百科关于快速排序的定义如下：
+> 快速排序使用分治法（Divide and conquer）策略来把一个序列（list）分为较小和较大的2个子序列，然后递归地排序两个子序列。
+步骤为：
+- 挑选基准值：从数列中挑出一个元素，称为“基准”（pivot），
+- 分割：重新排序数列，所有比基准值小的元素摆放在基准前面，所有比基准值大的元素摆在基准后面（与基准值相等的数可以到任何一边）。在这个分割结束之后，对基准值的排序就已经完成，
+- 递归排序子序列：递归地将小于基准值元素的子序列和大于基准值元素的子序列排序。
+递归到最底部的判断条件是数列的大小是零或一，此时该数列显然已经有序。
+
+### 5.1 递归算法
+
+```java
+public class RecursiveQuicksort {
+
+    /**
+     * 交换数组中两个元素
+     * @param array 数组
+     * @param left 左边的下标
+     * @param right 右边的下标
+     */
+    private void swap(int[] array, int left, int right) {
+
+        int tmp = array[left];
+        array[left] = array[right];
+        array[right] = tmp;
+    }
+
+    /**
+     * 分隔数组为两个子数组
+     * @param array 数组
+     * @param left 左边的下标
+     * @param right 右边的下标
+     * @return 分隔的下标
+     */
+    private int partition(int[] array, int left, int right) {
+
+        // 计算基准的下标
+        int index = (left + right) / 2;
+        int privot = array[index];
+
+        int i = left;
+        int j = right - 1;
+
+        swap(array, index, right);
+
+        while (i < j) {
+            while (i <= right && array[i] < privot) {
+                i++;
+            }
+
+            while ( j >= left && array[j] > privot) {
+                j--;
+            }
+
+            if (i < j) {
+                swap(array, i, j);
+                i++;
+                j--;
+            }
+        }
+
+        if (array[i] > array[right]) {
+            swap(array, i, right);
+        }
+
+        return i;
+    }
+
+    /**
+     * 快速排序算法
+     * @param array 数组
+     * @param left 左边的下标
+     * @param right 右边的下标
+     */
+    public void quicksort(int[] array, int left, int right) {
+        if (left >= right || array == null || array.length <= 1) {
+            return;
+        }
+
+        int privot = partition(array, left, right);
+        quicksort(array, left, privot - 1);
+        quicksort(array, privot + 1, right);
+    }
+
+    public static void main(String[] args) {
+
+        int[] array = new int[]{3, 4, 5, 6, 20, 21, 22, 30, 32, 65, 100, 102};
+        new RecursiveQuicksort().quicksort(array, 0, array.length - 1);
+
+        IntStream stream = IntStream.of(array);
+        stream.forEach(a -> System.out.println(a));
+    }
+}
+
+```
+
+### 5.2 Fork/Join
+
+```java
+public class ForkJoinQuicksort extends RecursiveAction {
+
+    private int[] array;
+    private int left;
+    private int right;
+
+    public ForkJoinQuicksort() {
+        super();
+    }
+
+    public ForkJoinQuicksort(int[] array, int left, int right) {
+        super();
+        this.array = array;
+        this.left = left;
+        this.right = right;
+    }
+    
+    @Override
+    protected void compute() {
+
+        if (left >= right || array == null || array.length <= 1) {
+            return;
+        }
+
+        int privot = partition(array, left, right);
+        ForkJoinQuicksort leftTask = new ForkJoinQuicksort(array, left, privot - 1);
+        ForkJoinQuicksort rightTask = new ForkJoinQuicksort(array, privot + 1, right);
+
+        leftTask.fork();    // 提交异步子任务
+        rightTask.fork();
+
+        rightTask.join();   // 等待任务执行结束
+        leftTask.join();
+    }
+
+    public static void main(String[] args) {
+        ForkJoinPool pool = new ForkJoinPool();
+
+        int[] array = new int[]{3, 4, 50, 23, 20, 44, 22, 51, 32, 65, 2, 5};
+
+        ForkJoinQuicksort task = new ForkJoinQuicksort(array, 0, array.length - 1);
+        pool.invoke(task);  // 提交任务
+
+        IntStream stream = IntStream.of(array);
+        stream.forEach(value -> System.out.println(value));
+    }
+}
+
+```
+ForkJoinQuicksort主要是继承RecursiveAction（没有返回值），算法逻辑在compute方法实现即可。
 
 ## 6. 总结
-
+ForkJoinPool主要是提供了“分治算法”的多线程版本，基于“Work-Stealing”，可以有效使用cpu多核的优势，提高算法的速度。ForkJoinPool 最适合的是计算密集型的任务，如果存在 I/O、线程间同步、sleep() 等会造成线程长时间阻塞的情况时，最好配合使用 ManagedBlocker。
 
 **参考：**
 
