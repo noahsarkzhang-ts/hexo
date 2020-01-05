@@ -28,20 +28,20 @@ int sum = list.stream().filter(x -> x % 2 == 0).sorted(Comparator.reverseOrder()
 在文章开始前，先讲述下几个重要概念：
 1、Stream
 > A sequence of elements supporting sequential and parallel aggregate operations.  The following example illustrates an aggregate operation using 
-```java
+>```java
 int sum = widgets.stream()
                    .filter(w -> w.getColor() == RED)
                    .mapToInt(w -> w.getWeight())
                    .sum();
 ```
 
+
 2、AbstractPipeline
 >Abstract base class for "pipeline" classes, which are the core implementations of the Stream interface and its primitive specializations. Manages construction and evaluation of stream pipelines.
 >An AbstractPipelinere presents an initial portion of a stream pipeline, encapsulating a stream source and zero or more intermediate operations. The individual AbstractPipeline objects are often referred to as stages, where each stage describes either the stream source or an intermediate operation.
 
-2、Sink
->An extension of Consumer used to conduct values through the stages of a stream pipeline, with additional methods to manage size information, control flow, etc.  Before calling the  accept() method on a code Sink for the first time, you must first call the  begin() method to inform it that data is coming (optionally informing the sink how much data is coming), and after all data has been sent, you must call the end() method.  After calling end(), you should not call accept() without again calling begin(). Sink also offers a mechanism by which the sink can cooperatively signal that it does not wish to receive any more data (the cancellationRequested() method), which a source can poll before sending more data to the
-Sink.
+3、Sink
+>An extension of Consumer used to conduct values through the stages of a stream pipeline, with additional methods to manage size information, control flow, etc.  Before calling the  accept() method on a code Sink for the first time, you must first call the  begin() method to inform it that data is coming (optionally informing the sink how much data is coming), and after all data has been sent, you must call the end() method.  After calling end(), you should not call accept() without again calling begin(). Sink also offers a mechanism by which the sink can cooperatively signal that it does not wish to receive any more data (the cancellationRequested() method), which a source can poll before sending more data to the Sink.
 
 ## 2. AbstractPipeline
 
@@ -81,9 +81,9 @@ AbstractPipeline(AbstractPipeline<?, E_IN, ?> previousStage, int opFlags) {
         throw new IllegalStateException(MSG_STREAM_LINKED);
     previousStage.linkedOrConsumed = true;
     // 上一个阶段(前一个操作)的nextStage指向当前的StatelessOp对象
-	previousStage.nextStage = this;
-	
-	// 当前对象的previousStage指向上一个阶段的对象(前一个操作)
+    previousStage.nextStage = this;
+    
+    // 当前对象的previousStage指向上一个阶段的对象(前一个操作)
     this.previousStage = previousStage;
     this.sourceOrOpFlags = opFlags & StreamOpFlag.OP_MASK;
     this.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);
@@ -99,7 +99,7 @@ AbstractPipeline(AbstractPipeline<?, E_IN, ?> previousStage, int opFlags) {
 TerminalOp终止操作的类图如下所示：
 ![TerminalOp](/images/TerminalOp.jpg "TerminalOp")
 TerminalOp有四种类型，分别是：1）ForEachOp；2）FindOp；3）MatchOp；4）ReduceOp。表格中提到的所有终止操作都是基于这四种类型来实现的，另外终止类型的操作并没有加入到由ReferencePipeline组成的双向链表中。
-调用forEach(), reduce(), collect(), anyMatch()等方法，都会调用ReferencePipeline类中的evaluate()方法，生成一个TerminalOp对象，以此触发相应的动作，现在我们来看下这个evaluate()方法，其流程如下：
+最后的终止操作是通过调用诸如forEach(), reduce(), collect(), anyMatch()等这些方法来触发的，这些方法最终会调用ReferencePipeline类中的evaluate()方法来完成操作，在evaluate()方法，生成一个TerminalOp对象，且封装了一个统一的处理流程，现在来看下这个evaluate()方法，其流程如下：
 ![stream-evaluate](/images/stream-evaluate.jpg "stream-evaluate")
 
 - 根据不同的终止操作生成不同的TerminalOp对象，可以是上面四种类型中的任意一种；
@@ -110,7 +110,7 @@ TerminalOp有四种类型，分别是：1）ForEachOp；2）FindOp；3）MatchOp
 - 从后往前遍历中间操作（ReferencePipeline）对象，构建每一个中间操作对应的Sink对象，并将这些Sink对象从前往后生成链表，TerminalSink对象在链尾；
 - 根据操作标志位判来触发真正的动作，如短路操作，或者非短路操作，该部分内容在后面讲述；
 
-在这里我们重点看一个步骤：包装Sink对象。
+在这里重点看一个步骤：包装Sink对象。
 ```java
 /**
  * @param sink TerminalSink对象,链尾对象
@@ -126,12 +126,187 @@ final <P_IN> Sink<P_IN> wrapSink(Sink<E_OUT> sink) {
     return (Sink<P_IN>) sink;
 }
 ```
-通过wrapSink方法，从后往前遍历所有的AbstractPipeline对象，并将后一个Sink对象作为参数传入，赋值给dowonstream字段，从而将所有的Sink对象串连起来。
+通过wrapSink方法，从后往前遍历所有的AbstractPipeline对象，生成每个操作对应的Sink对象，并将后一个Sink对象作为参数传入，赋值给dowonstream字段，从而将所有的Sink对象串连起来，通过链首的Sink对象访问所有的Sink对象。
 
 ## 3. Sink
+Sink对象是扩展自Comsumer接口，主要用来处理数据，除了Comsumer接口的accept()方法，还增加了三个方法：begin(),end()及cancellationRequested()。在调用accept()方法之前，先调用begin(int size)方法，告之数据源的大小，调用accept()方法之后，再调用end()方法，通知数据处理已经结束，如果有短路操作（中止后续数据的处理），必须先调用cancellationRequested()方法，这两种处理模式如下所示：
+```java
+// 非短路操作
+if (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) {
+    // 1、调用begin()方法，告之数据源大小；
+    wrappedSink.begin(spliterator.getExactSizeIfKnown());
+    // 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据；
+    spliterator.forEachRemaining(wrappedSink);
+    // 3、处理完数据之后，调用end()方法
+    wrappedSink.end();
+	
+} else {  // 短路操作
+    // 调用begin()方法，告之数据源大小；
+    wrappedSink.begin(spliterator.getExactSizeIfKnown());
+    // 2、遍历数据源元素，调用wrappedSink.accept()方法处理数据，
+    // 如果上一个元素设置了“短路”标志，说明数据已经完毕，则退出遍历；
+    do {
+    } while (!wrappedSink.cancellationRequested() && spliterator.tryAdvance(wrappedSink));
+    // 3、处理完数据之后，调用end()方法
+    wrappedSink.end();
+}
+```
+从上面的代码可以看出，所有的操作都是在一次遍历中完成的，对数据的处理操作已经按照书写顺序串连起来，即Sink对象链表，数据源中的每一个元素依次传递给Sink对象，被Sink对象的accept()方法处理，如果是短路操作，则需要设置"短路"标志，在处理下一个数据元素时，调用cancellationRequested()方法便可知道数据已经处理完毕，退出遍历返回即可。这里有两个问题，1）“短路”标志是如何设置的？2）数据的处理是否只需要一次遍历？
+1) “短路”标志设置
+在两个地方需要判断“短路”标志，一个是根据“短路”标志，是否执行“短路”操作，另外一个是在遍历数据源的过程中，判断数据处理是否已经被取消，需要中止操作，以anyMatch()方法为例。
+![short_circuit-1](/images/short_circuit-1.jpg "short_circuit-1")
+如上图所示，判断“短路”的逻辑如下：
+- 在短路操作的TerminalOp对象中设置短路的标志位；
+```java
+// MatchOp.getOpFlags()
+public int getOpFlags() {
+    return StreamOpFlag.IS_SHORT_CIRCUIT | StreamOpFlag.NOT_ORDERED;
+}
+```
+- 将TerminalOp对象中短路标志位合并到最后一个ReferencePipeline对象的combinedFlags中；
+```java
+// AbstractPipeline.sourceSpliterator()
+if (terminalFlags != 0)  {
+    // Apply flags from the terminal operation to last pipeline stage
+    combinedFlags = StreamOpFlag.combineOpFlags(terminalFlags, combinedFlags);
+}
+```
+- 根据combinedFlags判断是否执行短路操作；
+```java
+// AbstractPipeline.copyInto()
+if (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) {
+    wrappedSink.begin(spliterator.getExactSizeIfKnown());
+    spliterator.forEachRemaining(wrappedSink);
+    wrappedSink.end();
+}
+else {
+    copyIntoWithCancel(wrappedSink, spliterator);
+}
+```
 
-## 5. 总结
+中止操作的逻辑如下：
+![short_circuit-2](/images/short_circuit-2.jpg "short_circuit-2")
+在MatchSink中一个stop的字段，如果找到匹配的数据，则设置stop=true，在进行下一个数据匹配之前递归调用cancellationRequested()，取得stop的值，从而中止操作。
+- 找到匹配的数据并设置stop；
+```java
+// MatchSink.accept()
+public void accept(T t) {
+	// 条件匹配
+    if (!stop && predicate.test(t) == matchKind.stopOnPredicateMatches) {
+        stop = true; // 设置stop
+        value = matchKind.shortCircuitResult;
+    }
+}
+```
 
+- 对下一个数据元素进行数据处理前递归调用cancellationRequested()方法，调用到TerminalSink，结束调用。
+```java
+// ReferencePipeline.forEachWithCancel()
+final void forEachWithCancel(Spliterator<P_OUT> spliterator, Sink<P_OUT> sink) {
+    // 处理下一个数据之前调用cancellationRequested()方法
+    do { } while (!sink.cancellationRequested() && spliterator.tryAdvance(sink));
+}
+
+// ChainedReference.cancellationRequested()
+public boolean cancellationRequested() {
+    // 递归调用一个Sink的cancellationRequested()方法
+    return downstream.cancellationRequested();
+}
+
+// BooleanTerminalSink.cancellationRequested
+// 调用到TerminalSink，结束调用
+public boolean cancellationRequested() {
+    return stop;
+}
+```
+
+2）遍历次数
+中间操作ReferencePipeline对象分为两种类型：1）无状态操作StatelessOp；2）有状态操作StatefulOp。这两种操作的区别在于：在无状态操作StatelessOp中数据元素没有依赖关系，每一个数据元素可以独立处理，而有状态操作StatefulOp中数据元素的处理依赖其它元素，每一个元素不能独立处理，以filter()和sorted()两个方法为例。
+```java
+// ReferencePipeline.filter()
+public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
+    Objects.requireNonNull(predicate);
+    return new StatelessOp<P_OUT, P_OUT>(this, StreamShape.REFERENCE,
+                                 StreamOpFlag.NOT_SIZED) {
+
+        @Override
+        Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
+            return new Sink.ChainedReference<P_OUT, P_OUT>(sink) {
+                @Override
+                public void begin(long size) {
+                    downstream.begin(-1);
+                }
+
+                @Override
+                public void accept(P_OUT u) {
+					// 如果满足过滤条件，则传递给下一个Sink处理
+                    if (predicate.test(u))
+                        downstream.accept(u);
+                }
+            };
+        }
+    };
+}
+```
+在StatelessOp操作中，经过本阶段的Sink处理完毕之后，会将数据元素继续传递给下一个Sink对象处理。
+
+```java
+// sorted()方法对应的Sink对象
+private static final class RefSortingSink<T> extends AbstractRefSortingSink<T> {
+    // 1. 临时生成一个列表对象
+    private ArrayList<T> list;
+
+    RefSortingSink(Sink<? super T> sink, Comparator<? super T> comparator) {
+        super(sink, comparator);
+    }
+
+    @Override
+    public void begin(long size) {
+        if (size >= Nodes.MAX_ARRAY_SIZE)
+            throw new IllegalArgumentException(Nodes.BAD_SIZE);
+            
+        // 2. 列表对象初始化，一般生成不限长度的列表
+        list = (size >= 0) ? new ArrayList<T>((int) size) : new ArrayList<T>();
+    }
+
+    @Override
+    public void end() {
+        // 4. 进行排序操作
+        list.sort(comparator);
+	
+        // 5. 重新遍历数据列表，处理后续的操作
+        downstream.begin(list.size()); // 通知数据处理开始
+        // 6. 判断是否进行“短路”操作
+        if (!cancellationWasRequested) {
+            // 7. 执行非短路操作
+            list.forEach(downstream::accept);
+        }
+        else {
+            // 8. 执行短路操作
+            for (T t : list) {
+                if (downstream.cancellationRequested()) break;
+                downstream.accept(t);
+            }
+        }
+        
+        // 9. 通知数据处理结束
+        downstream.end();
+        list = null;
+    }
+
+    @Override
+    public void accept(T t) {
+        // 3. 将数据元素添加到列表中
+        list.add(t);
+    }
+}
+```
+对于排序操作而言，需要知道所有的元素才能进行，所以它临时生成了一个新的列表对象，存储完所有的数据元素之后，再进行排序操作。最后遍历列表对象，重新执行短路/非短路操作，完成剩余的操作。
+
+总上所述，在操作序列中只有无状态操作的话，只要遍历一次即可执行完所有操作，如果包含有状态操作，则每一个有状态操作者需要增加一次遍历。
+
+## 4. 总结
+通过上面的分析，Stream的实现有以下三个特点：1）通过链表的方式将操作序列串连起来，数据元素在这个链表中依次流动（传递），可以有效减少数据遍历的次数；2）定义了一套“协议”，规范了前后两个不同操作之间的交互方式，遵循了这套协议，不同操作可按不同顺序组合，完成不同的功能；3）借助Fork/Join框架，数据源可并发执行数据处理，显著提高数据处理的效率。
 
 **参考：**
 
