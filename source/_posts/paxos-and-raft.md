@@ -85,14 +85,22 @@ P 3.1没有被多数派Accept（只有S3 Accept），但是被P 4.5学习到，P
 P 3.1 没有被多数派Accept（只有S1 Accept），同时也没有被 P 4.5学习到。由于P 4.5 Propose的所有应答，均未返回 Value，则 P 4.5 可以Accept 自己的Value（Y）。
 后续 P 3.1的Accept（X）会失败，已经 Accept 的 S1，会被覆盖。
 
-Basic-Paxos 存在一个活锁，如下图所示：
+Basic-Paxos 存在一个活锁的问题，如下图所示：
 ![liveness-lock](/images/consensus-algorithm/liveness-lock.jpg "liveness-lock")
 两个Proposers交替Propose成功，Accept失败，形成活锁（Livelock）
 
 ### 2.2 Multi-Paxos
 如果想确定一个确定，一个值，Basic-Paxos 就可以实现了。如果想确定连续多个提案，确定连续多个值，Basic-Paxos 算法就搞不定了，就要使用 Multi-Paxos。如下图所示：
+![multi-paxos](/images/consensus-algorithm/multi-paxos.jpg "multi-paxos")
 
+Multi-Paxos 就是对每一个 Paxos Instance 执行一次 Paxos 算法，确保每一台服务器上的数据都是一致的。
 
+Multi-Paxos 有如下一些缺点：
+1. 比较复杂，难以理解，工程实现难度比较大；
+2. 每一个服务器都可以执行写操作，性能较差。
+
+为了解决 Multi-Paxos 的缺点，很多优化的措施引入进来，如通过选举算法，选出Leader，写操作通过 Leader 进行；还有将 Multi-Paxos 算法进行模块划分，易于理解及实现。Raft 算法便是对 Multi-Paxos 的简化，其结构如下图所示：
+![multi-paxos-2](/images/consensus-algorithm/multi-paxos-2.jpg "multi-paxos-2")
 
 ## 3. Raft
 
