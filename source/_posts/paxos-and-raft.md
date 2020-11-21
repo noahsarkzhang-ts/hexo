@@ -99,14 +99,45 @@ Multi-Paxos 有如下一些缺点：
 1. 比较复杂，难以理解，工程实现难度比较大；
 2. 每一个服务器都可以执行写操作，性能较差。
 
-为了解决 Multi-Paxos 的缺点，很多优化的措施引入进来，如通过选举算法，选出Leader，写操作通过 Leader 进行；还有将 Multi-Paxos 算法进行模块划分，易于理解及实现。Raft 算法便是对 Multi-Paxos 的简化，其结构如下图所示：
+为了解决 Multi-Paxos 的缺点，在算法中引入了 Leader 的角色，所有的决议都通过 Leader 来进行，然后同步到其它服务器，其结构如下图所示：
 ![multi-paxos-2](/images/consensus-algorithm/multi-paxos-2.jpg "multi-paxos-2")
 
+通过 Consensus Module， 完成多个连续的提案的确定，通过日志同步到各个服务器，保证服务器以相同的顺序执行，使得服务器的状态保持一致。其中，Raft 算法便是 Multi-Paxos 算法的一个实现版本。
+
 ## 3. Raft
+Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一致性。Leader 从客户端接收日志条目，把日志条目复制到其它服务器上，并且当保证安全性的时候告诉其它服务器应用日志条目到他们的状态机中。拥有一个 Leader 大大简化了对复制日志的管理。例如，Leader 可以决定新的日志条目需要放在日志中的什么位置而不需要和其他服务器商议，并且数据只从 Leader 流向其他服务器。一个 Leader 可以宕机，可以和其他服务器失去连接，这时一个新的 Leader 会被选举出来。
 
-## 4. Raft实现
+通过 Leader 的方式，Raft 将一致性问题分解成了三个相对独立的子问题：
+1. Leader 选举：当现存的 Leader 宕机的时候，一个新的 Leader 需要被选举出来；
+2. 日志复制：Leader 必须从客户端接收日志然后复制到集群中的其他节点，并且强制要求其它节点的日志保持和自己相同；
+3. 安全性：如果有任何的服务器节点已经应用了一个确定的日志条目到它的状态机中，那么其它服务器节点不能在同一个日志索引位置应用一个不同的指令。
 
-## 5. 总结
+### 3.1 基本概念
+**Server状态：**
+
+在任何时刻，每一个服务器节点都处于这三个状态之一：Leader 、Follower 或者 Candidate。在通常情况下，系统中只有一个 Leader 并且其它的节点全部都是 Follower。Follower 都是被动的：它们不会发送任何请求，只是简单的响应来自 Leader 或者 Candidate 的请求。Leader 处理所有的客户端请求（如果一个客户端和 Leader 联系，那么 Follower 会把请求重定向给 Leader）。第三种状态，Candiate，是用来在选举新 Leader 时使用。下图展示了这些状态和它们之间的转换关系。
+
+![raft_server_state](/images/consensus-algorithm/raft_server_state.png "raft_server_state")
+- Leader : 处理客户端的请求以及日志复制；
+- Follower : 接收来自 Leader 或者 Canditate 的 Message，并响应；
+- Candidate : 用于选主的中间状态。
+
+**Term：**
+Raft 把时间分割成任意长度的任期，如下图所示，任期用连续的整数标记。每一段任期从一次选举开始，一个或者多个 Candidate 尝试成为 Leader。如果一个 Candidate 赢得选举，然后它就在接下来的任期内充当 Leader 的职责。在某些情况下，一次选举过程会造成选票的瓜分。在这种情况下，这一任期会以没有 Leader 结束；一个新的任期（和一次新的选举）会很快重新开始。Raft 保证了在一个给定的任期内，最多只有一个 Leader。
+![raft_term](/images/consensus-algorithm/raft-term.png "raft_term")
+
+**Message类型：**
+Raft 算法中服务器节点之间通信使用远程过程调用（RPCs），并且基本的一致性算法只需要两种类型的 RPCs。请求投票（RequestVote） RPCs ，由 Candidate 在选举期间发起，然后追加条目（AppendEntries）RPCs 由Leader 发起，用来复制日志和提供一种心跳机制。安装快照 (InstallSnapshot）在新服务器启动时或者 Follower 落后太多日志时使用。
+
+### 3.2 Leader 选择
+Raft 使用心跳机制来触发 Leader 选举。当服务器程序启动时，他们都是 Follower 身份。只要从 Leader 或者 Candidate 处接收到有效的 AppendEntries RPC， 一个服务器节点继续保持着 Folllowr 状态。Leader 周期性的向所有 Follower 发送心跳包（即不包含日志项内容的追加日志项 RPCs）来维持自己的权威。如果一个 Follower 在一段时间里没有接收到任何消息，也就是选举超时，那么他就会认为系统中没有可用的 Leader,并且发起选举以选出新的 Leader。
+要开始一次选举过程，Follower 先要增加自己的当前任期号并且转换到 Candidate 状态。然后它会并行的向集群中的其他服务器节点发送请求投票的 RPCs 来给自己投票。如果一个 Candidate 从整个集群的大多数服务器节点获得了针对同一个任期号的选票，那么它就赢得了这次选举并成为 Leader。每一个服务器最多会对一个任期号投出一张选票，按照先来先服务的原则，并且确保 Candidate 的日志比服务器更新。要求大多数选票的规则确保了最多只会有一个 Candidate 赢得此次选举，要求 Candidate 的日志最新，确保日志只从 Leader 流向 Follower。一旦候选人赢得选举，它就立即成为领导人。然后他它会向其他的服务器发送心跳消息来建立自己的权威并且阻止新的领导人的产生。
+
+![raft-election ](/images/consensus-algorithm/raft-election.jpg "raft-election ")
+
+### 3.3 日志复制
+
+## 4. 总结
 
 
 **参考：**
@@ -114,8 +145,8 @@ Multi-Paxos 有如下一些缺点：
 ----
 [1]:https://mp.weixin.qq.com/s?__biz=MzAwMDU1MTE1OQ==&mid=403582309&idx=1&sn=80c006f4e84a8af35dc8e9654f018ace&scene=1&srcid=0119gtt2MOru0Jz4DHA3Rzqy&key=710a5d99946419d927f6d5cd845dc9a72ff3d652a8e66f0ddf87d91262fd262f61f63660690d2d5da76a44a29e155610&ascene=0&uin=MjA1MDk3Njk1&devicetype=iMac+MacBookPro11%2C4+OSX+OSX+10.11.1+build(15B42)&version=11020201&pass_ticket=bhstP11nRHvorVXvQ4pt9fzB9Vdzj5sSRBe84783gsg%3D
 [2]:https://mp.weixin.qq.com/s?__biz=MjM5MDg2NjIyMA==&mid=203607654&idx=1&sn=bfe71374fbca7ec5adf31bd3500ab95a&key=8ea74966bf01cfb6684dc066454e04bb5194d780db67f87b55480b52800238c2dfae323218ee8645f0c094e607ea7e6f&ascene=1&uin=MjA1MDk3Njk1&devicetype=webwx&version=70000001&pass_ticket=2ivcW%2FcENyzkz%2FGjIaPDdMzzf%2Bberd36%2FR3FYecikmo%3D
-[3]:https://mp.weixin.qq.com/s/bjM3uEDg61vhNN8Y661L7w
-[4]:https://blog.csdn.net/dog250/article/details/50528373
+[3]:https://github.com/maemual/raft-zh_cn/blob/master/raft-zh_cn.md
+[4]:https://www.sofastack.tech/blog/sofa-jraft-election-mechanism/
 [5]:https://my.oschina.net/alchemystar/blog/3008840
 [6]:https://blog.csdn.net/russell_tao/article/details/17119729
 [7]:https://blog.nowcoder.net/n/dade4d8c53d144dfa78157887e2cb33e
@@ -123,8 +154,8 @@ Multi-Paxos 有如下一些缺点：
 
 [1. 架构师需要了解的Paxos原理、历程及实战][1]
 [2. 一步一步理解Paxos算法][2]
-[3. Linux select/poll机制原理分析][3]
-[4. Linux内核中网络数据包的接收-第二部分 select/poll/epoll][4]
+[3. 寻找一种易于理解的一致性算法（扩展版）][3]
+[4. SOFAJRaft 选举机制剖析 | SOFAJRaft 实现原理][4]
 [5. 从linux源码看epoll][5]
 [6. 高性能网络编程5--IO复用与并发编程][6]
 [7. epoll源码分析][7]
