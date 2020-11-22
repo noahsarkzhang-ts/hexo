@@ -89,7 +89,7 @@ Basic-Paxos 存在一个活锁的问题，如下图所示：
 ![liveness-lock](/images/consensus-algorithm/liveness-lock.jpg "liveness-lock")
 两个Proposers交替Propose成功，Accept失败，形成活锁（Livelock）
 
-### 2.2 Multi-Paxos
+## 3. Multi-Paxos
 如果想确定一个确定，一个值，Basic-Paxos 就可以实现了。如果想确定连续多个提案，确定连续多个值，Basic-Paxos 算法就搞不定了，就要使用 Multi-Paxos。如下图所示：
 ![multi-paxos](/images/consensus-algorithm/multi-paxos.jpg "multi-paxos")
 
@@ -104,7 +104,7 @@ Multi-Paxos 有如下一些缺点：
 
 通过 Consensus Module， 完成多个连续的提案的确定，通过日志同步到各个服务器，保证服务器以相同的顺序执行，使得服务器的状态保持一致。其中，Raft 算法便是 Multi-Paxos 算法的一个实现版本。
 
-## 3. Raft
+## 4. Raft
 Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一致性。Leader 从客户端接收日志条目，把日志条目复制到其它服务器上，并且当保证安全性的时候告诉其它服务器应用日志条目到他们的状态机中。拥有一个 Leader 大大简化了对复制日志的管理。例如，Leader 可以决定新的日志条目需要放在日志中的什么位置而不需要和其他服务器商议，并且数据只从 Leader 流向其他服务器。一个 Leader 可以宕机，可以和其他服务器失去连接，这时一个新的 Leader 会被选举出来。
 
 通过 Leader 的方式，Raft 将一致性问题分解成了三个相对独立的子问题：
@@ -112,7 +112,7 @@ Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一�
 2. 日志复制：Leader 必须从客户端接收日志然后复制到集群中的其他节点，并且强制要求其它节点的日志保持和自己相同；
 3. 安全性：如果有任何的服务器节点已经应用了一个确定的日志条目到它的状态机中，那么其它服务器节点不能在同一个日志索引位置应用一个不同的指令。
 
-### 3.1 基本概念
+### 4.1 基本概念
 **Server状态：**
 
 在任何时刻，每一个服务器节点都处于这三个状态之一：Leader 、Follower 或者 Candidate。在通常情况下，系统中只有一个 Leader 并且其它的节点全部都是 Follower。Follower 都是被动的：它们不会发送任何请求，只是简单的响应来自 Leader 或者 Candidate 的请求。Leader 处理所有的客户端请求（如果一个客户端和 Leader 联系，那么 Follower 会把请求重定向给 Leader）。第三种状态，Candiate，是用来在选举新 Leader 时使用。下图展示了这些状态和它们之间的转换关系。
@@ -129,15 +129,61 @@ Raft 把时间分割成任意长度的任期，如下图所示，任期用连续
 **Message类型：**
 Raft 算法中服务器节点之间通信使用远程过程调用（RPCs），并且基本的一致性算法只需要两种类型的 RPCs。请求投票（RequestVote） RPCs ，由 Candidate 在选举期间发起，然后追加条目（AppendEntries）RPCs 由Leader 发起，用来复制日志和提供一种心跳机制。安装快照 (InstallSnapshot）在新服务器启动时或者 Follower 落后太多日志时使用。
 
-### 3.2 Leader 选择
+### 4.2 Leader 选择
 Raft 使用心跳机制来触发 Leader 选举。当服务器程序启动时，他们都是 Follower 身份。只要从 Leader 或者 Candidate 处接收到有效的 AppendEntries RPC， 一个服务器节点继续保持着 Folllowr 状态。Leader 周期性的向所有 Follower 发送心跳包（即不包含日志项内容的追加日志项 RPCs）来维持自己的权威。如果一个 Follower 在一段时间里没有接收到任何消息，也就是选举超时，那么他就会认为系统中没有可用的 Leader,并且发起选举以选出新的 Leader。
-要开始一次选举过程，Follower 先要增加自己的当前任期号并且转换到 Candidate 状态。然后它会并行的向集群中的其他服务器节点发送请求投票的 RPCs 来给自己投票。如果一个 Candidate 从整个集群的大多数服务器节点获得了针对同一个任期号的选票，那么它就赢得了这次选举并成为 Leader。每一个服务器最多会对一个任期号投出一张选票，按照先来先服务的原则，并且确保 Candidate 的日志比服务器更新。要求大多数选票的规则确保了最多只会有一个 Candidate 赢得此次选举，要求 Candidate 的日志最新，确保日志只从 Leader 流向 Follower。一旦候选人赢得选举，它就立即成为领导人。然后他它会向其他的服务器发送心跳消息来建立自己的权威并且阻止新的领导人的产生。
+要开始一次选举过程，Follower 先要增加自己的当前任期号并且转换到 Candidate 状态。然后它会并行的向集群中的其他服务器节点发送请求投票的 RPCs 来给自己投票。如果一个 Candidate 从整个集群的大多数服务器节点获得了针对同一个任期号的选票，那么它就赢得了这次选举并成为 Leader。每一个服务器最多会对一个任期号投出一张选票，按照先来先服务的原则，并且确保 Candidate 的日志比服务器更新。要求大多数选票的规则确保了最多只会有一个 Candidate 赢得此次选举，要求 Candidate 的日志最新，确保日志只从 Leader 流向 Follower。一旦候选人赢得选举，它就立即成为领导人。然后他它会向其他的服务器发送心跳消息来建立自己的权威并且阻止新的 Leader 的产生。
 
-![raft-election ](/images/consensus-algorithm/raft-election.jpg "raft-election ")
+![raft-election](/images/consensus-algorithm/raft-election.jpg "raft-election")
 
-### 3.3 日志复制
+一个 Candidate 获得集群中多数服务器的选票，并不代表真正获得了 Leader，因为它只完成了类似 Basic-Paxos的 Prepare阶段，此时它还需要向集群中的服务器发送 AppendEntries RPC，阻止其它服务器发起选主请求，其它服务器收到该 RPC 之后，将自己的状态转化为 Follower。
+在Basic-Paxos 中存在活锁的问题，在 Raft 选主中也同样存在，即多个 Candidate 同时对同一个 Term 发起选主请求，选票会被多个 Candidate 瓜分，为了避免这个问题，Raft 为每一个 Candidate 选择一个随机选主超时时间，可以有效避免这种情况，即使发生这种情况，因为没有一个 Candidate 获得多数选票，等待超时时间之后，将触发下一轮的选主，而下一轮的触发的时间也是随机的。
+在选主的操作中，只有那些包含更新更多日志的 Candiate 才有机会获得选票，这主要是通过比较 LastLogIndex 和 LastLogTerm 来实现的。通过这种方式，Raft 简化了后续日志复制的过程，保证了日志只会由 Leader 流向 Follower。
 
-## 4. 总结
+通过以上的方式，保证了选主的安全性：<strong style="color:red">对于一个给定的任期号，最多只会有一个领导人被选举出来。</strong>
+
+### 4.3 日志复制
+一旦一个 Leader 被选举出来，它就开始为客户端提供服务。客户端的每一个请求都包含一条被状态机执行的指令。Leader 把这条指令作为一条新的日志条目附加到日志中去，然后并行的发起追加条目 RPCs 给其他的服务器，让它们复制这条日志条目。当这条日志条目被安全的复制并回复 ACK 给Leader ，Leader 会应用这条日志条目到它的状态机中然后把执行的结果返回给客户端。如果少数派的 Follower 崩溃或者运行缓慢，再或者网络丢包，Leader 人会不断的重复尝试追加日志条目 RPCs （尽管已经回复了客户端）直到所有的 Follower 都最终存储了所有的日志条目。
+![raft-log](/images/consensus-algorithm/raft-log.png "raft-log")
+
+每一个 Log Entry 由有序序号标记的条目组成。每个条目都包含创建时的任期号，和一个状态机需要执行的指令。当一个条目复制到多数派的服务器上时就被认为已提交 (Committed) 状态了。
+![raft-log-format](/images/consensus-algorithm/raft-log-format.jpg "raft-log-format")
+
+当日志被多数派服务器持久化之后就成为 Committed 状态，应用到状态机之后变为 Applied，正常情况下，一旦日志成为 Committed 状态之后，就不允许撤消。一个未被多数派持久化的日志有可能被撤消。
+![raft-log-state](/images/consensus-algorithm/raft-log-state.jpg "raft-log-state")
+
+Leader 决定什么时候将日志应用给状态机是安全的，Raft 保证 Committed Entries 持久化，并且最终被其它状态机应用。一个 Log Entry 一旦复制给了大多数节点就成为 Committed。同时还有一种情况，如果当前待提交 Entry 之前有未提交的 Entry，即使是以前过时的 Leader 创建的，只要满足已存储在大多数节点上就一次性按顺序都提交。Leader 要追踪最新的 Committed 的 index，并在每次AppendEntries RPCs（包括心跳）都要带给其它服务器，以使其它服务器知道一个 Log Entry是已提交的，从而在它们本地的状态机上也应用。
+![raft-log-flow](/images/consensus-algorithm/raft-log-flow.jpg "raft-log-flow")
+从上图可以知道，日志的 Commited 状态由 Leader 来决定，并在下一次的 AppendEntries RPC 中由 leaderCommit 字段传递给 Follower。正常情况下，在返回客户端之前，日志会应用到 Leader 的状态机中，而 Follower 什么时候将日志应用到状态机，是一个异步操作，会滞后于 Leader。所以 Leader 状态机中持有最新的数据。
+
+**日志修复**
+一个日志只要多数派持久化成功，就会认为是 Committed 的。由于各种原因，总有 Follower 落后于 Leader。Leader 为每个 Follower 维护一个 nextId，标示下一个要发送的 logIndex。Follower 接收到 AppendEntries（传递 prevTermID，prevLogIndex 参数），之后会进行一致性检查，检查 AppendEntries 中指定的 LastLogIndex 是否一致，如果不一致就会向 Leader 返回失败。Leader 接收到失败之后，会将 nextId 减1，重新进行发送，直到成功。这个回溯的过程实际上就是寻找 Follower 上最后一个 CommittedId，然后 Leader 发送其后的 LogEntry。 
+![raft_log_recovery](/images/consensus-algorithm/raft_log_recovery.png "raft_log_recovery")
+
+重新选主后，新的 Leader 没有之前内存中维护的 nextId，以本地 lastLogIndex + 1 作为每个节点的 nextId。这样根据节点的 AppendEntries应答可以调整 nextId：
+
+```java
+// nextIndex
+local.nextIndex = max(min(local.nextIndex-1, resp.LastLogIndex+1), 1)
+```
+
+### 4.4 日志压缩
+Raft 的日志在正常操作中不断的增长，但是在实际的系统中，日志不能无限制的增长。随着日志不断增长，它会占用越来越多的空间，花费越来越多的时间来重置。如果没有一定的机制去清除日志里积累的陈旧的信息，那么会带来可用性问题。
+
+快照是最简单的压缩方法。在快照系统中，整个系统的状态都以快照的形式写入到稳定的持久化存储中，然后到那个时间点之前的日志全部丢弃。在 Chubby 和 ZooKeeper 中同样使用快照技术。
+![raft-log-conpress](/images/consensus-algorithm/raft-log-conpress.png "raft-log-conpress")
+上图展示了 Raft 中快照的基础思想。每个服务器独立的创建快照，只包括已经被提交的日志。主要的工作包括将状态机的状态写入到快照中。Raft 也包含一些少量的元数据到快照中：<strong style="color:red">最后被包含索引（lastIncludedIndex）</strong>指的是被快照取代的最后的条目在日志中的索引值（状态机最后应用的日志），<strong style="color:red">最后被包含的任期（lastIncludedTerm）</strong>指的是该条目的任期号。保留这些数据是为了支持快照后紧接着的第一个条目的追加日志请求时的一致性检查，因为这个条目需要前一日志条目的索引值和任期号。为了支持集群成员更新，快照中也将最后的一次配置作为最后一个条目存下来。一旦服务器完成一次快照，他就可以删除最后索引位置之前的所有日志和快照了。
+做快照的时机选择，对系统也是有影响的。如果过于频繁的快照，那么将会浪费大量的磁盘带宽；如果过于不频繁的快照，那么 Log 将会占用大量的磁盘空间，启动速度也很慢。一个简单的方式就是当 Log 达到一定大小之后再进行快照，或者是达到一定时间之后再进行快照。
+快照会花费比较长的时间，如果期望快照不影响正常的 Log Entry同步，可以采用 Copy-On-Write 的技术来实现。例如，选择底层的数据结构支持 COW (Copy-On-Write)、LSM-Tree 类型的存储结构，或者是使用系统的 COW 支持，Linux的fork，或者是 ZFS 的 Snapshot 等。
+
+### 4.5  集群成员变化
+
+### 4.6 线性一致读
+
+### 4.7 安全性
+
+## 5. Multi-Raft
+
+## 6. 总结
 
 
 **参考：**
@@ -147,8 +193,8 @@ Raft 使用心跳机制来触发 Leader 选举。当服务器程序启动时，�
 [2]:https://mp.weixin.qq.com/s?__biz=MjM5MDg2NjIyMA==&mid=203607654&idx=1&sn=bfe71374fbca7ec5adf31bd3500ab95a&key=8ea74966bf01cfb6684dc066454e04bb5194d780db67f87b55480b52800238c2dfae323218ee8645f0c094e607ea7e6f&ascene=1&uin=MjA1MDk3Njk1&devicetype=webwx&version=70000001&pass_ticket=2ivcW%2FcENyzkz%2FGjIaPDdMzzf%2Bberd36%2FR3FYecikmo%3D
 [3]:https://github.com/maemual/raft-zh_cn/blob/master/raft-zh_cn.md
 [4]:https://www.sofastack.tech/blog/sofa-jraft-election-mechanism/
-[5]:https://my.oschina.net/alchemystar/blog/3008840
-[6]:https://blog.csdn.net/russell_tao/article/details/17119729
+[5]:https://github.com/baidu/braft/blob/master/docs/cn/raft_protocol.md
+[6]:https://www.sofastack.tech/blog/sofa-jraft-linear-consistent-read-implementation/
 [7]:https://blog.nowcoder.net/n/dade4d8c53d144dfa78157887e2cb33e
 [8]:https://zhuanlan.zhihu.com/p/60713292
 
@@ -156,7 +202,7 @@ Raft 使用心跳机制来触发 Leader 选举。当服务器程序启动时，�
 [2. 一步一步理解Paxos算法][2]
 [3. 寻找一种易于理解的一致性算法（扩展版）][3]
 [4. SOFAJRaft 选举机制剖析 | SOFAJRaft 实现原理][4]
-[5. 从linux源码看epoll][5]
-[6. 高性能网络编程5--IO复用与并发编程][6]
+[5. RAFT介绍][5]
+[6. SOFAJRaft 线性一致读实现剖析 | SOFAJRaft 实现原理][6]
 [7. epoll源码分析][7]
 [8. 带您进入内核开发的大门 | 内核中的等待队列][8]
