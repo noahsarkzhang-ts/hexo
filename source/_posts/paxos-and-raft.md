@@ -31,7 +31,7 @@ categories:
 Paxos 算法解决的问题是一个分布式系统如何就某个值（提案）达成一致。一个典型的场景是，在一个分布式数据库系统中，如果各节点的初始状态一致，每个节点都执行相同的操作序列，那么他们最后能得到一个一致的状态。为保证每个节点执行相同的命令序列，需要在每一条指令上执行一个“一致性算法”以保证每个节点看到的指令一致，是分布式计算中的重要问题。
 
 ### 2.1 Basic-Paxos
-在 Paxos 算法中，服务器分为三种角色：
+在 Paxos 算法中，节点分为三种角色：
 1. Proposers：提案（value）发起者，接收客户端请求；
 2. Acceptors：接收提案（value）进行决策，存储 accept 的提案（value）；
 3. Learners：不参与决策，从 Proposers 和 Acceptors 学习最新达成一致的提案（value）。
@@ -73,7 +73,7 @@ Basic-Paxos 算法如下图所示：
 Basic-Paxos 实例 1：
 ![paxos-example-1](/images/consensus-algorithm/paxos-example-1.jpg "paxos-example-1")
 说明：
-Proposal ID：round number(3), server id(1)，即 Proposal ID = 3.1 ，其中 3 代表轮数，1 代表 服务器编号。
+Proposal ID：round number(3), server id(1)，即 Proposal ID = 3.1 ，其中 3 代表轮数，1 代表 节点编号。
 P 3.1达成多数派，其 Value(X) 被 Accept，然后P 4.5学习到 Value(X)，并Accept。
 
 实例 2：
@@ -93,29 +93,29 @@ Basic-Paxos 存在一个活锁的问题，如下图所示：
 如果想确定一个确定，一个值，Basic-Paxos 就可以实现了。如果想确定连续多个提案，确定连续多个值，Basic-Paxos 算法就搞不定了，就要使用 Multi-Paxos。如下图所示：
 ![multi-paxos](/images/consensus-algorithm/multi-paxos.jpg "multi-paxos")
 
-Multi-Paxos 就是对每一个 Paxos Instance 执行一次 Paxos 算法，确保每一台服务器上的数据都是一致的。
+Multi-Paxos 就是对每一个 Paxos Instance 执行一次 Paxos 算法，确保每一台节点上的数据都是一致的。
 
 Multi-Paxos 有如下一些缺点：
 1. 比较复杂，难以理解，工程实现难度比较大；
 2. 每一个服务器都可以执行写操作，性能较差。
 
-为了解决 Multi-Paxos 的缺点，在算法中引入了 Leader 的角色，所有的决议都通过 Leader 来进行，然后同步到其它服务器，其结构如下图所示：
+为了解决 Multi-Paxos 的缺点，在算法中引入了 Leader 的角色，所有的决议都通过 Leader 来进行，然后同步到其它节点，其结构如下图所示：
 ![multi-paxos-2](/images/consensus-algorithm/multi-paxos-2.jpg "multi-paxos-2")
 
-通过 Consensus Module， 完成多个连续的提案的确定，通过日志同步到各个服务器，保证服务器以相同的顺序执行，使得服务器的状态保持一致。其中，Raft 算法便是 Multi-Paxos 算法的一个实现版本。
+通过 Consensus Module， 完成多个连续的提案的确定，通过日志同步到各个节点，保证节点以相同的顺序执行，使得节点的状态保持一致。其中，Raft 算法便是 Multi-Paxos 算法的一个实现版本。
 
 ## 4. Raft
-Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一致性。Leader 从客户端接收日志条目，把日志条目复制到其它服务器上，并且当保证安全性的时候告诉其它服务器应用日志条目到他们的状态机中。拥有一个 Leader 大大简化了对复制日志的管理。例如，Leader 可以决定新的日志条目需要放在日志中的什么位置而不需要和其他服务器商议，并且数据只从 Leader 流向其他服务器。一个 Leader 可以宕机，可以和其他服务器失去连接，这时一个新的 Leader 会被选举出来。
+Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一致性。Leader 从客户端接收日志条目，把日志条目复制到其它节点上，并且当保证安全性的时候告诉其它节点应用日志条目到他们的状态机中。拥有一个 Leader 大大简化了对复制日志的管理。例如，Leader 可以决定新的日志条目需要放在日志中的什么位置而不需要和其他节点商议，并且数据只从 Leader 流向其他节点。一个 Leader 可以宕机，可以和其他节点失去连接，这时一个新的 Leader 会被选举出来。
 
 通过 Leader 的方式，Raft 将一致性问题分解成了三个相对独立的子问题：
 1. Leader 选举：当现存的 Leader 宕机的时候，一个新的 Leader 需要被选举出来；
 2. 日志复制：Leader 必须从客户端接收日志然后复制到集群中的其他节点，并且强制要求其它节点的日志保持和自己相同；
-3. 安全性：如果有任何的服务器节点已经应用了一个确定的日志条目到它的状态机中，那么其它服务器节点不能在同一个日志索引位置应用一个不同的指令。
+3. 安全性：如果有任何的节点节点已经应用了一个确定的日志条目到它的状态机中，那么其它节点节点不能在同一个日志索引位置应用一个不同的指令。
 
 ### 4.1 基本概念
 **Server状态：**
 
-在任何时刻，每一个服务器节点都处于这三个状态之一：Leader 、Follower 或者 Candidate。在通常情况下，系统中只有一个 Leader 并且其它的节点全部都是 Follower。Follower 都是被动的：它们不会发送任何请求，只是简单的响应来自 Leader 或者 Candidate 的请求。Leader 处理所有的客户端请求（如果一个客户端和 Leader 联系，那么 Follower 会把请求重定向给 Leader）。第三种状态，Candiate，是用来在选举新 Leader 时使用。下图展示了这些状态和它们之间的转换关系。
+在任何时刻，每一个节点节点都处于这三个状态之一：Leader 、Follower 或者 Candidate。在通常情况下，系统中只有一个 Leader 并且其它的节点全部都是 Follower。Follower 都是被动的：它们不会发送任何请求，只是简单的响应来自 Leader 或者 Candidate 的请求。Leader 处理所有的客户端请求（如果一个客户端和 Leader 联系，那么 Follower 会把请求重定向给 Leader）。第三种状态，Candiate，是用来在选举新 Leader 时使用。下图展示了这些状态和它们之间的转换关系。
 
 ![raft_server_state](/images/consensus-algorithm/raft_server_state.png "raft_server_state")
 - Leader : 处理客户端的请求以及日志复制；
@@ -176,6 +176,32 @@ Raft 的日志在正常操作中不断的增长，但是在实际的系统中，
 快照会花费比较长的时间，如果期望快照不影响正常的 Log Entry同步，可以采用 Copy-On-Write 的技术来实现。例如，选择底层的数据结构支持 COW (Copy-On-Write)、LSM-Tree 类型的存储结构，或者是使用系统的 COW 支持，Linux的fork，或者是 ZFS 的 Snapshot 等。
 
 ### 4.5  集群成员变化
+集群成员变化主要是指集群节点数量的增删，在实际场景中，集群的扩容（副本数的增加）或者节点当机下线都是常见的事情。在不停机的情况下，由于节点不能一次性原子地变更节点的成员配置信息，会导致同一时间，同一个任期出现两个领导者，违背了算法安全性原则，如下图所示：
+![raft-membership](/images/consensus-algorithm/raft-membership.png "raft-membership")
+3 个节点的集群扩展到 5 个节点的集群，直接扩展可能会造成 Server1 和Server2 构成老的多数集合，Server3、Server4 和 Server5 构成新的多数集合，产生两个领导者。
+
+**Joint-Consensus**
+Raft 算法采用协同一致性的方式来解决节点的变更，先提交一个包含新老节点结合的 Configuration 命令，当这条消息 Commit 之后再提交一条只包含新节点的 Configuration 命令。新老集合中任何一个节点都可以成为 Leader，这样 Leader 当机之后，如果新的 Leader 没有看到包括新老节点集合的 Configuration 日志，继续以老节点集合组建集群；如果新的 Leader 看到了包括新老节点集合的 Configuration 日志，将未完成的节点变更流程走完。具体流程如下：
+1. 加入新对节点，从 Leader 中追加数据；
+2. 全部新节点完成数据同步之后，向新老集合发送 Cold+new 命令；
+3. 如果新节点集合多数和老节点集合多数都应答了 Cold+new，就向新老节点集合发送 Cnew 命令；
+4. 如果新老节点集合多数应答了 Cnew，完成节点切换。
+
+在这里，我们可以把 Cold+new 理解为包含新老结点地址集合，如果当前集群包括 server1, server2 及 server3, 新加的结点为 server4, server5,那么 Cold+new 等同于集合 [server1, server2, server3, server4, server5], Cold 为 [server1, server2, server3], Cnew 为 [server4, server5]。
+
+![raft-member-transmit](/images/consensus-algorithm/raft-member-transmit.png "raft-member-transmit")
+虚线表示已经被创建但是还没有被提交的配置日志条目，实线表示最后被提交的配置日志条目。领导人首先创建了 Cold+new 的配置条目在自己的日志中，并提交到 Cold+new 中（Cold 的大多数和 Cnew 的大多数）。然后它创建 Cnew 条目并提交到 Cnew 中的大多数。这样就不存在 Cnew 和 Cold 可以同时做出决定的时间点。
+如果 Cold+new 被 Commit 到新老集合多数的话，即使过程终止，新的 Leader 依然能够看到 Cold+new，并继续完成 Cnew 的流程，最终完成节点变更；如果 Cold+new 没有提交到新老集合多数的话，新的Leader可能看到了 Cold+new 也可能没有看到，如果看到了依然可以完成 Cnew 的流程，如果没有看到，说明 Cold+new 在两个集合都没有拿到多数应答，重新按照 Cold 进行集群操作，两阶段过程中选主需要新老两个集合都达到多数同意。
+
+节点配置变更过程中需要满足如下规则：
+- 新老集合中的任何节点都可能成为 Leader；
+- 任何决议都需要新老集合的多数通过。
+
+在这里有一个关键的点就是：<strong style="color:red">任何决议都需要新老集合的多数通过。</strong>如果不能形成两个多数集合，算法是否就可以简化？单节点变更就是基于这个想法产生的。
+
+**Single-Server Change**
+单节点变更是对 Joint-Consensus 的简化， 它每次只增删一个节点，这样就不会出现两个多数集合，不会造成决议冲突的情况，如果需要变更多个节点，那需要执行多次单节点变更。
+
 
 ### 4.6 线性一致读
 
