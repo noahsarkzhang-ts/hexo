@@ -200,17 +200,91 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 在这里有一个关键的点就是：<strong style="color:red">任何决议都需要新老集合的多数通过。</strong>如果不能形成两个多数集合，算法是否就可以简化？单节点变更就是基于这个想法产生的。
 
 **Single-Server Change**
-单节点变更是对 Joint-Consensus 的简化， 它每次只增删一个节点，这样就不会出现两个多数集合，不会造成决议冲突的情况，如果需要变更多个节点，那需要执行多次单节点变更。
+单节点变更是对 Joint-Consensus 的简化， 它每次只增删一个节点，这样就不会出现两个多数集合，不会造成决议冲突的情况，如果需要变更多个节点，那需要执行多次单节点变更。比如将 3 节点集群扩容为 5 节点集群，这时你需要执行 2 次单节点变更，先将 3 节点集群变更为 4 节点集群，然后再将 4 节点集群变更为 5 节点集群，如下图所示：
+![raft-node-new](/images/consensus-algorithm/raft-node-new.jpg "raft-node-new")
+还是以三结点 Raft 集群为例，演示下变更为五结点的过程，假定节点 A 为 Leader。
+![raft-node-evolution-1](/images/consensus-algorithm/raft-node-evolution-1.jpg "raft-node-evolution-1")
+目前的集群配置为[A, B, C]，先向集群中加入节点 D，这意味着新配置为[A, B, C, D]。成员变更，是通过两步实现的：
+1. Leader（节点 A）向新节点（节点 D）同步数据；
+2. Leader（节点 A）将新配置 [A, B, C, D] 作为一个日志项，复制到新配置中所有节点（节点 A、B、C、D）上，然后将新配置的日志项应用（Apply）到本地状态机，完成单节点变更。
+![raft-node-evolution-2](/images/consensus-algorithm/raft-node-evolution-2.jpg "raft-node-evolution-2")
 
+变更完成后，集群的配置变为 [A, B, C, D],接着向集群加入结点 E，即新配置为[A, B, C, D, E]，流程类似:
+1. Leader（节点 A）向新节点（节点 E）同步数据；
+2. Leader（节点 A）将新配置 [A, B, C, D, E] 作为一个日志项，复制到新配置中所有节点（节点 A、B、C、D、E）上，然后将新配置的日志项应用（Apply）到本地状态机，完成单节点变更。
+![raft-node-evolution-3](/images/consensus-algorithm/raft-node-evolution-3.jpg "raft-node-evolution-3")
+
+通过连续执行两次单结点变更，完成了集群结点的扩容。
+
+一次性加入一个结点，重点在于新老配置的结点不会形成两个多数派，新老配置要形成多数派总会有重叠的结点，重叠的结点不会给同一任期的两个结点投两次票，这是由 Raft 算法的安全性保证的。
+
+![raft-node-evolution](/images/consensus-algorithm/raft-node-evolution.jpg "raft-node-evolution")
+
+不管节点数是偶数还是奇数，增加或减少一个结点都不能形成新老配置的两个多数派，两个集合总会有重叠，从而确保了算法的安全性。
+
+另外，在分区错误、节点故障等情况下，有可能并发执行单节点变更，那么就可能出现一次单节点变更尚未完成，新的单节点变更又在执行，导致集群出现 2 个 Leader 的情况。解决的办法是，可以在 Leader 启时 （选主成功之后）时，创建一个 NO_OP 日志项（也就是空日志项），只有当 Leader将 NO_OP 日志项应用后，再执行成员变更请求。
 
 ### 4.6 线性一致读
+什么是线性一致读? 所谓线性一致读，一个简单的例子是在 t1 的时刻写入了一个值，那么在 t1 之后，一定能读到这个值，不可能读到 t1 之前的旧值(类似 Java 中的 volatile 关键字，即线性一致读就是在分布式系统中实现 Java volatile 语义)。简而言之是需要在分布式环境中实现 Java volatile 语义效果，即当 Client 向集群发起写操作的请求并且获得成功响应之后，该写操作的结果要对所有后来的读请求可见。和 volatile 的区别在于 volatile 是实现线程之间的可见，而线性一致读需要实现 Server 之间的可见。
+![raft-linearizability-read](/images/consensus-algorithm/raft-linearizability-read.png "raft-linearizability-read")
+如上图 Client A、B、C、D 均符合线性一致读，其中 D 看起来是 Stale Read，其实并不是，D 请求横跨 3 个阶段，而 Read 可能发生在任意时刻，所以读到 1 或 2 都行。
+
+**Raft Log read**
+实现线性一致读最常规的办法是走 Raft 协议，将读请求同样按照 Log 处理，通过 Log 复制和状态机执行来获取读结果，然后再把读取的结果返回给客户端。因为 Raft 本来就是一个为了实现分布式环境下线性一致性的算法，所以通过 Raft 非常方便的实现线性 Read，也就是将任何的读请求走一次 Raft Log，等此 Log 提交之后在 apply 的时候从状态机里面读取值，一定能够保证这个读取到的值是满足线性要求的。
+
+因为每次 Read 都需要走 Raft 流程，Raft Log 存储、复制带来刷盘开销、存储开销、网络开销，走 Raft Log 不仅仅有日志落盘的开销，还有日志复制的网络开销，另外还有一堆的 Raft “读日志” 造成的磁盘占用开销，导致 Read 操作性能是非常低效的，所以在读操作很多的场景下对性能影响很大，在读比重很大的系统中是无法被接受的，通常都不会使用。
+
+个人理解：<strong style="color:red">Raft Log read 关键点在于提交一次读操作并应用到状态机后，将之前处于 Commited　状态的 log 都应用到状态机，确保状态机的状态是最新的。</strong>
+
+在 Raft 算法中，执行一次写操作，由客户端向 Leader 发起，首先 Leader 将本次操作写入本地日志，然后向所有的 Follower 同步日志，Follower 收到日志之后写入本地，并回复给 Leader ； Leader 收到半数以上的回复之后将本次操作应用到本地的状态机，并返回客户端写入成功，最后 Leader 在下次同步日志时再将本次日志 Commited 的信息传递给 Follower , Follower再异步更新本地状机。可见，一次写入操作之后，Leader 状态机拥有最新的状态，而 Follower 状态机的状态有可能落后于 Leader。如果直接从 Follower 读到数据，会读到 Stale 数据。如果从 Leader 读取数据的话，则可以保证线性读取最新的数据。现在关键的问题是：<strong style="color:red">如何确认 Leader 在处理这次 Read 的时候一定是 Leader ? </strong>，在这里，有两种方法：
+1. ReadIndex Read;
+2. Lease Read.
+
+**ReadIndex Read**
+ReadIndex Read 有两个关键点：
+1. Leader 向 Follower 发送心跳确认自己仍然是 Leader，避免 Leader 已经过期而不自知；
+2. 维护一个 ReadIndex , 初始值等于 Leader 的 CommitIndex , 并将 ReadIndex 指向的所有 Log 都应用到状态机中，确保所有的写操作都已经应用。
+
+ReadIndex Read 可以从 Leader 和 Followr 读取，过程如下描述。
+
+从 Leader 读取：
+1. Leader 将自己当前 Log 的 commitIndex 记录到一个 Local 变量 ReadIndex 里面；
+2. 接着向 Followers 节点发起一轮 Heartbeat，如果半数以上节点返回对应的 Heartbeat Response，那么 Leader就能够确定现在自己仍然是 Leader；
+3. Leader 等待自己的 StateMachine 状态机执行，至少应用到 ReadIndex 记录的 Log，直到 applyIndex 超过 ReadIndex，这样就能够安全提供 Linearizable Read，也不必管读的时刻是否 Leader 已飘走；
+4. Leader 执行 Read 请求，将结果返回给 Client。
+
+从 Follower 读取：
+1. Follower 节点向 Leader 请求最新的 ReadIndex；
+2. Leader 仍然走一遍之前的流程，执行上面前 3 步的过程(确定自己真的是 Leader)，并且返回 ReadIndex 给 Follower；
+3. Follower 等待当前的状态机的 applyIndex 超过 ReadIndex；
+4. Follower 执行 Read 请求，将结果返回给 Client
+
+**Lease Read**
+在 ReadIndex Read 中执行一次读操作，Leader 都要向 Follower 发送心跳确认当前自己仍然是 Leader，还是存在网络开销，是否可以优化？ Leader 的选主是通过选择超时时间进行的，在这里引入任期的概念，在下一次选主前，都可以认为当前 Leader 的角色都是不会改变的，在这期间的读操作，可以节省心跳的操作。
+Raft 论文里面提及一种通过 Clock + Heartbeat 的 Lease Read 优化方法，也就是 Leader 发送 Heartbeat 的时候首先记录一个时间点 Start，当系统大部分节点都回复 Heartbeat Response，由于 Raft 的选举机制，Follower 会在 Election Timeout 的时间之后才重新发生选举，下一个 Leader 选举出来的时间保证大于 Start + Election Timeout/Clock Drift Bound，所以可以认为 Leader 的 Lease 有效期可以到 Start + Election Timeout/Clock Drift Bound 时间点。
+
+Lease Read 基本思路是 Leader 取一个比 Election Timeout 小的租期（最好小一个数量级），在租约期内不会发生选举，确保 Leader 不会变化，所以跳过 ReadIndex 的第二步也就降低延时。由此可见 Lease Read 的正确性和时间是挂钩的，依赖本地时钟的准确性，因此虽然采用 Lease Read 做法非常高效，但是仍然面临风险问题，也就是存在预设的前提即各个服务器的 CPU Clock 的时间是准的，即使有误差，也会在一个非常小的 Bound 范围里面，时间的实现至关重要，如果时钟漂移严重，各个服务器之间 Clock 走的频率不一样，这套 Lease 机制可能出问题。
+
+Lease Read 实现方式包括：
+1. 定时 Heartbeat 获得多数派响应，确认 Leader 的有效性；
+2. 在租约有效时间内，可以认为当前 Leader 是唯一有效 Leader，可忽略 ReadIndex 中的 Heartbeat 确认步骤；
+3. Leader 等待自己的状态机执行，直到 applyIndex 超过 ReadIndex，这样就能够安全的提供 Linearizable Read
 
 ### 4.7 安全性
+使用 Raft 算法，需要保证如下的安全性：
+1. 选举安全特性：对于一个给定的任期号，最多只会有一个领导人被选举出来；
+2. 领导人只附加原则：领导人绝对不会删除或者覆盖自己的日志，只会增加；
+3. 日志匹配原则：如果两个日志在相同的索引位置的日志条目的任期号相同，那么我们就认为这个日志从头到这个索引位置之间全部完全相同；
+4. 领导人完全特性：如果某个日志条目在某个任期号中已经被提交，那么这个条目必然出现在更大任期号的所有领导人中；
+4. 状态机安全特性：如果一个领导人已经将给定的索引值位置的日志条目应用到状态机中，那么其他任何的服务器在这个索引位置不会应用一个不同的日志。
 
 ## 5. Multi-Raft
+因为 Raft 集群内只有 Leader 提供读写服务，所以读写也会形成单点的瓶颈。因此为了支持水平扩展，可以按某种 Key 进行分片部署，比如用户 ID，让 Group 1 对 [0, 10000) 的 ID 提供服务，让 Group 2 对 [10000, 20000) 的 ID 提供服务，以此类推。如下是 SOFAJRaft 的实现：
+
+![multi-raft](/images/consensus-algorithm/multi-raft.png "multi-raft")
 
 ## 6. 总结
-
+这篇文章对主要的一致性算法进行了一个概念上描述，并没有深入到具体实现细节。在工程实践境中，已经有几个 Raft 的实现用于生产环境中，如 GO 语言版本的 Etcd、C++ 语言的 braft 及 Java 语言的 SOFAJRaft 。后面有时间，专门研究分析下 SOFAJRaft 源码，提升对共识算法的理解。
 
 **参考：**
 
@@ -221,8 +295,9 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 [4]:https://www.sofastack.tech/blog/sofa-jraft-election-mechanism/
 [5]:https://github.com/baidu/braft/blob/master/docs/cn/raft_protocol.md
 [6]:https://www.sofastack.tech/blog/sofa-jraft-linear-consistent-read-implementation/
-[7]:https://blog.nowcoder.net/n/dade4d8c53d144dfa78157887e2cb33e
-[8]:https://zhuanlan.zhihu.com/p/60713292
+[7]:https://www.sofastack.tech/blog/sofa-jraft-deep-dive/
+[8]:https://github.com/hedengcheng/tech/blob/master/distributed/PaxosRaft%20%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E7%AE%97%E6%B3%95%E5%8E%9F%E7%90%86%E5%89%96%E6%9E%90%E5%8F%8A%E5%85%B6%E5%9C%A8%E5%AE%9E%E6%88%98%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8.pdf
+
 
 [1. 架构师需要了解的Paxos原理、历程及实战][1]
 [2. 一步一步理解Paxos算法][2]
@@ -230,5 +305,5 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 [4. SOFAJRaft 选举机制剖析 | SOFAJRaft 实现原理][4]
 [5. RAFT介绍][5]
 [6. SOFAJRaft 线性一致读实现剖析 | SOFAJRaft 实现原理][6]
-[7. epoll源码分析][7]
-[8. 带您进入内核开发的大门 | 内核中的等待队列][8]
+[7. 蚂蚁金服开源 SOFAJRaft 详解| 生产级高性能 Java 实现][7]
+[8. PaxosRaft 分布式一致性算法原理剖析及其在实战中的应用.pdf][8]
