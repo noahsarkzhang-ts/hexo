@@ -4,7 +4,8 @@ date: 2020-11-29 17:15:14
 tags:
 - Gossip
 - 一致性算法
-- 共识算法
+- 故障检测
+- Redis Cluster
 categories: 
 - 一致性算法
 ---
@@ -54,10 +55,116 @@ Gossip 协议的主要职责就是信息交换，这些信息包括上面所说�
 3. pong 消息：当接收到 ping、meet 消息时，作为响应消息回复给发送方确认消息正常通信。pong消息内部封装了自身状态数据。节点也可以向集群内广播自身的 pon g消息来通知整个集群对自身状态进行更新；
 4. fail 消息：当节点判定集群内另一个节点下线时，会向集群内广播一个 fail 消息，其他节点接收到 fail 消息之后把对应节点更新为下线状态。
 
+### 4.1 消息体
+一个 Gossip 协议消息常常包括一个 clusterMsg + n 个 clusterMsgData，clusterMsg 当前结点的信息，包括主从信息及本结点的 slots 信息。clusterMsgData 根据消息类型的不同表示为不同的数据结构，后面进到。消息的结构下图所示：
+![redis-clusterMsg](/images/consensus-algorithm/redis-clusterMsg.jpg "redis-clusterMsg")
 
+clusterMsg 结构如下所示：
 
+```c
+typedef struct {
+    char sig[4];        /* Signature "RCmb" (Redis Cluster message bus). */
+    uint32_t totlen;    /* Total length of this message */
+    uint16_t ver;       /* Protocol version, currently set to 1. */
+    uint16_t port;      /* TCP base port number. */
+    uint16_t type;      /* Message type */
+    uint16_t count;     /* Only used for some kind of messages. */
+    uint64_t currentEpoch;  /* The epoch accordingly to the sending node. */
+    uint64_t configEpoch;   /* The config epoch if it's a master, or the last
+                               epoch advertised by its master if it is a
+                               slave. */
+    uint64_t offset;    /* Master replication offset if node is a master or
+                           processed replication offset if node is a slave. */
+    char sender[CLUSTER_NAMELEN]; /* Name of the sender node */
+    unsigned char myslots[CLUSTER_SLOTS/8];  /* 本结点的 slot 信息 */
+    char slaveof[CLUSTER_NAMELEN];
+    char myip[NET_IP_STR_LEN];    /* Sender IP, if not all zeroed. */
+    char notused1[34];  /* 34 bytes reserved for future usage. */
+    uint16_t cport;      /* Sender TCP cluster bus port */
+    uint16_t flags;      /* Sender node flags */
+    unsigned char state; /* Cluster state from the POV of the sender */
+    unsigned char mflags[3]; /* Message flags: CLUSTERMSG_FLAG[012]_... */
+    union clusterMsgData data;
+} clusterMsg;
+```
+
+如果是 PING, MEET and PONG 消息的话，clusterMsgData 发送的是一个 clusterMsgDataGossip 数组，clusterMsgDataGossip 描述了一个结点的简要信息，包括了结点的状态，其中就包括疑似下线结点的状态。如果是 FAIL 消息，则发送的是 clusterMsgDataFail 数据，clusterMsgDataFail 只包含一个字段，即下线结点的名字。
+
+```c
+union clusterMsgData {
+    /* PING, MEET and PONG */
+    struct {
+        /* Array of N clusterMsgDataGossip structures */
+        clusterMsgDataGossip gossip[1];
+    } ping;
+
+    /* FAIL */
+    struct {
+        clusterMsgDataFail about;
+    } fail;
+
+    /* PUBLISH */
+    struct {
+        clusterMsgDataPublish msg;
+    } publish;
+
+    /* UPDATE */
+    struct {
+        clusterMsgDataUpdate nodecfg;
+    } update;
+
+    /* MODULE */
+    struct {
+        clusterMsgModule msg;
+    } module;
+};
+
+```
+clusterMsgDataGossip 结构体包括了一个结点的基本信息，其中 pong_received 字段记录了该结点最近一次发送 pong 消息的时间，flags 状态记录了结点的状态，疑似下线状态就是由这个标志来记录的。
+
+```c
+/* Initially we don't know our "name", but we'll find it once we connect
+ * to the first node, using the getsockname() function. Then we'll use this
+ * address for all the next messages. */
+typedef struct {
+    char nodename[CLUSTER_NAMELEN];
+    uint32_t ping_sent;
+    uint32_t pong_received;
+    char ip[NET_IP_STR_LEN];  /* IP address last time it was seen */
+    uint16_t port;              /* base port last time it was seen */
+    uint16_t cport;             /* cluster port last time it was seen */
+    uint16_t flags;             /* node->flags copy */
+    uint32_t notused1;
+} clusterMsgDataGossip;
+
+```
+
+clusterMsgDataFail 结构体只包括了结点的名称，相对比较简单。
+
+```c
+typedef struct {
+    char nodename[CLUSTER_NAMELEN];
+} clusterMsgDataFail;
+```
+
+### 4.2 消息传播
+Redis cluser 通过以下的方式进行消息的传播：
+1. 每 1 S 从 5 个随机结点中选择一个最久未发送 Pong 消息的结点发送　Ping 消息。发送的消息中包括当前结点的信息及多个随机结点的简要信息和状态消息；收到消息的结点，回复一个 Pong 消息；
+2. 每 100 MS 扫描一遍所有结点，比较结点上次发送 Pong 消息的时间到当前时间的时长，如果这个时长大于集群超时时间的 1/2，则立即发送 Ping 信息，避免在第一步中有结点长期未被选中的情况发生。
+
+这个流程如下图代码所示：
+![redis-clusterCron](/images/consensus-algorithm/redis-clusterCron.jpg "redis-clusterCron")
+
+一个消息体包括发送结点本身的信息，同时会随机选择多个结点的状态信息，结点的数量小于总结点数的 1/10，这其中包括正常的结点和疑似下线的结点，流程如下所示：
+![redis-clusterSendPing](/images/consensus-algorithm/redis-clusterSendPing.jpg "redis-clusterSendPing")
+
+### 4.2 故障检测
+1. 下线检测：集群中的每个节点都会定期向集群中的其它节点发送 Ping 消息，用于检测对方是否在线，如果接收 Ping 消息的节点没有在规定的时间收到响应的 Ping 消息，那么，发送 Ping 消息的节点就会将接收 Ping 消息的节点标注为疑似下线状态（Probable Fail，Pfail）；
+2. 状态传递：集群中的各个节点会通过相互发送 Ping 消息的方式来交换自己掌握的集群中各个节点的状态信息，如在线、疑似下线（Pfail）、下线（fail）。如果一个结点检测到另外一结点疑似下线，该结点会将疑似下线结点的状态通过 Ping 消息传播给集群中其它结点，其它结点收到消息会更新其结点的状态；
+3. 下线判定：如果在一个集群里，超过半数的持有 slot(槽) 的主节点都将某个主节点 A 报告为疑似下线，那么，主节点 A 将被标记为下线（fail），检测到 A 结点下线的主结点广播一条 A 下线的 Fail 消息，所有收到这条 Fail 消息的节点都会立即将主节点 A 标记为 fail。至此，故障检测完成。
 
 ## 5. 总结
+Gossip 协议在 AP 场景及结点数量频繁变化的场景下，具有较大的优势，但是随着结点数量的增加，消息通信的成本也就更高，因此对于Redis集群来说并不是越大越好。
 
 **参考：**
 
@@ -65,20 +172,13 @@ Gossip 协议的主要职责就是信息交换，这些信息包括上面所说�
 [1]:https://time.geekbang.org/
 [2]:https://segmentfault.com/a/1190000022957348
 [3]:https://www.cnblogs.com/charlieroro/articles/12655967.html
-[4]:https://www.sofastack.tech/blog/sofa-jraft-election-mechanism/
-[5]:https://github.com/baidu/braft/blob/master/docs/cn/raft_protocol.md
-[6]:https://www.sofastack.tech/blog/sofa-jraft-linear-consistent-read-implementation/
-[7]:https://www.sofastack.tech/blog/sofa-jraft-deep-dive/
-[8]:https://github.com/hedengcheng/tech/blob/master/distributed/PaxosRaft%20%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E7%AE%97%E6%B3%95%E5%8E%9F%E7%90%86%E5%89%96%E6%9E%90%E5%8F%8A%E5%85%B6%E5%9C%A8%E5%AE%9E%E6%88%98%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8.pdf
-
+[4]:https://blog.csdn.net/Jin_Kwok/article/details/90111631
+[5]:https://segmentfault.com/a/1190000038373546
 
 [1. Gossip协议：流言蜚语，原来也可以实现一致性][1]
 [2. 漫谈 Gossip 协议][2]
 [3. Gossip是什么][3]
-[4. SOFAJRaft 选举机制剖析 | SOFAJRaft 实现原理][4]
-[5. RAFT介绍][5]
-[6. SOFAJRaft 线性一致读实现剖析 | SOFAJRaft 实现原理][6]
-[7. 蚂蚁金服开源 SOFAJRaft 详解| 生产级高性能 Java 实现][7]
-[8. PaxosRaft 分布式一致性算法原理剖析及其在实战中的应用.pdf][8]
+[4. 第三章：深入浅出理解分布式一致性协议Gossip和Redis集群原理][4]
+[5. 一万字详解 Redis Cluster Gossip 协议][5]
 
 
