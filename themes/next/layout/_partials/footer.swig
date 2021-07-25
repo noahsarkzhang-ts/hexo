@@ -37,6 +37,10 @@
   {% endif %}
 </div>
 
+<div class="BbeiAn-info">
+    <a target="_blank" href="https://beian.miit.gov.cn/"  rel="nofollow">粤ICP备 2021097726号-1 </a>
+</div>
+
 {% if theme.footer.powered.enable %}
   <div class="powered-by">{#
   #}{{ __('footer.powered', next_url('https://hexo.io', 'Hexo', {class: 'theme-link'})) }}{#
