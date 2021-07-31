@@ -151,5 +151,5 @@ $ docker container run \
 
 [2]:https://help.aliyun.com/document_detail/98728.html
 
-[1. JNginx 容器教程][1]
+[1. Nginx 容器教程][1]
 [2. 在Nginx（或Tengine）服务器上安装证书][2]
