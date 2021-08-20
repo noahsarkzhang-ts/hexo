@@ -1,5 +1,5 @@
 ---
-title: Alligator 心跳检测
+title: Alligator 系列：心跳检测
 date: 2021-08-14 17:30:36
 tags:
 - 心跳

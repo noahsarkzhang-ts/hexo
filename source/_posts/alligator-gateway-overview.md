@@ -1,5 +1,5 @@
 ---
-title: Alligator 长连接网关概述
+title: Alligator 序列：长连接网关概述
 date: 2021-07-31 19:58:01
 tags:
 - 网关
@@ -36,3 +36,8 @@ Alligator 项目就是为了解决上述的场景而开发的，它提供了一�
 
 ## 3. 总结
 Alligator 不仅提供了一个快速进行长连接开发的框架，同时还提供了一个开发脚手架，让长连接网关开发不再是一件困难的事。后续将出一个序列专门介绍其底层实现；
+
+
+[1]:https://github.com/noahsarkzhang-ts/alligator
+
+[工程代码][1]
