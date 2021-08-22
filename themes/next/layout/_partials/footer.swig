@@ -39,6 +39,7 @@
 
 <div class="BbeiAn-info">
     <a target="_blank" href="https://beian.miit.gov.cn/"  rel="nofollow">粤ICP备 2021097726号-1 </a>
+	<a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=44030702004132" style="text-decoration:none;padding-left:30px;background:url(https://s1.ax1x.com/2018/09/29/ilmwIH.png) no-repeat left center" rel="nofollow">{{ __('粤公网安备 44030702004132号') }}</a>
 </div>
 
 {% if theme.footer.powered.enable %}
