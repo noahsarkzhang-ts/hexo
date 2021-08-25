@@ -3,6 +3,11 @@ title: Netty 系列：Reactor
 date: 2021-08-22 13:22:53
 tags:
 - reactor
+- mainReactor
+- subReactor
+- EventLoopGroup
+- EventLoop
+- 事件循环
 categories:
 - Netty
 ---
@@ -525,47 +530,242 @@ private static final class PowerOfTwoEventExecutorChooser implements EventExecut
 在 Nio 模式下，Channel 有两种类型，分别是：NioServerSocketChannel 和 NioSocketChannel，其中 NioServerSocketChannel 用于监听网络连接请求，生成 NioSocketChannel 连接，该 Channle 注册到 BossGroup 的 EventLoop 中，而 NioSocketChannel 负责真正的网络读写，注册到 WorkerGroup 的 EventLoop 中。
 
 **1、NioServerSocketChannel 注册**
+
 ![netty-bind](/images/netty/netty-bind.jpg "netty-bind")
 
-NioServerSocketChannel 注册主要完成三件事情：
-- 将 NioServerSocketChannel 注册到 EventLoop 中；
-- 向 Selector 对象注册 OP_ACCEPT 事件。 
+在 Netty 的服务器启动过程中，主要的流程是一个 bind 操作，其流程包括：
+- 创建 NioServerSocketChannel 类，完成初始化的工作，其中包括添加 ChannelHandler 类；
+- 将 NioServerSocketChannel 注册到 EventLoop 中，同时向 Selector 对象中注册，不过此时并没有注册 OP_ACCEPT 事件；
+- 执行网络层的 bind 操作；
+- 执行读操作，主要是向 Selector 注册 OP_ACCEPT 事件。执行该操作后，便可接收网线的连接请求了。
+
+NioServerSocketChannel 注册穿插在上面的 4 个步骤中，主要包括 1）将 NioServerSocketChannel 注册到 EventLoop 中；2）向 Selector 对象注册 OP_ACCEPT 事件。 
 
 ```java
-// AbstractBootstrap
-final ChannelFuture initAndRegister() {
-    Channel channel = null;
-    try {
-        // 1、生成 NioServerSocketChannel 
-        channel = channelFactory.newChannel();
-        init(channel);
-    } catch (Throwable t) {
-       ...
-    }
-    
-    // 2、注册到 BossGroup 中
-    ChannelFuture regFuture = config().group().register(channel);
-    if (regFuture.cause() != null) {
-        if (channel.isRegistered()) {
-            channel.close();
-        } else {
-            channel.unsafe().closeForcibly();
+// AbstractUnsafe 对象中的 register 操作
+public final void register(EventLoop eventLoop, final ChannelPromise promise) {
+    ...
+
+    // 1、将 eventLoop 赋值给 AbstractChannel对象
+    AbstractChannel.this.eventLoop = eventLoop;
+
+    if (eventLoop.inEventLoop()) {
+        register0(promise);
+    } else {
+        try {
+            eventLoop.execute(new Runnable() {
+                @Override
+                public void run() {
+                    // 2、向 Selector 对象注册 Channel
+                    register0(promise);
+                }
+            });
+        } catch (Throwable t) {
+           ...
         }
     }
-    
-    return regFuture;
 }
 
-// MultithreadEventLoopGroup
+// AbstractNioChannel, 向 Selector 对象 注册 channel
+// 此时没有注册 OP_ACCEPT 事件
+protected void doRegister() throws Exception {
+    boolean selected = false;
 
+    while(true) {
+        try {
+            this.selectionKey = this.javaChannel().register(this.eventLoop().selector, 0, this);
+            return;
+        } catch (CancelledKeyException var3) {
+            if (selected) {
+                throw var3;
+            }
+
+            this.eventLoop().selectNow();
+            selected = true;
+        }
+    }
+}
+
+// AbstractNioChannel，注册 OP_ACCEPT 事件
+protected void doBeginRead() throws Exception {
+    // Channel.read() or ChannelHandlerContext.read() was called
+    final SelectionKey selectionKey = this.selectionKey;
+    if (!selectionKey.isValid()) {
+        return;
+    }
+
+    readPending = true;
+
+    final int interestOps = selectionKey.interestOps();
+    if ((interestOps & readInterestOp) == 0) {
+        selectionKey.interestOps(interestOps | readInterestOp);
+    }
+}
 
 ```
+在上面的代码可以看到 registor 操作主要是分配一个 EventLoop，并将 EventLoop 赋值给 NioServerSocketChannel。向 Selector 注册 Channel 则分为两次，第一次注册时事件参数为 0，等于没有注册任何事件；第二次是在底层 Channel bind 操作之后，准备就绪之后，再注册 OP_ACCEPT 事件。
 
 **2、NioSocketChannel 注册**
+在 bind 操作的流程中，第一步是创建 NioServerSocketChannel 类，并进行初始化，此时会注册 ChannelHandler 类，其中就有一个 ServerBootstrapAcceptor handler 类，它的主要功能就是收到网络请求之后对NioSocketChannel 类进行参数配置，将其注册到 workerGroup 中，其核心代码如下所示：
 
+```java
+public void channelRead(ChannelHandlerContext ctx, Object msg) {
+    final Channel child = (Channel) msg;
+	
+    // 1、添加 channelHandler 类
+    child.pipeline().addLast(childHandler);
+
+    // 2、设置 channel 的对数
+    setChannelOptions(child, childOptions, logger);
+    setAttributes(child, childAttrs);
+
+    try {
+		
+        // 3、向 wokerGroup 注册 Channel
+        childGroup.register(child).addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (!future.isSuccess()) {
+                    forceClose(child, future.cause());
+                }
+            }
+        });
+    } catch (Throwable t) {
+        forceClose(child, t);
+    }
+}
+```
+NioSocketChannel 和 NioServerSocketChannel 注册流程是一致的，差别只是注册到不同的 EventLoopGroup 及注册不同的 I/O 事件，其中  NioSocketChannel 注册的是 OP_READ 事件，而 NioServerSocketChannel 注册的是 OP_ACCEPT 事件。
 
 ### 3.3 事件循环
 
+EventLoop 本质是一个事件循环，不断地从 Selector (Epoll) 对象中获取 I/O 事件，执行解码/反序列化操作后，再分发到上层的业务线程进行处理。另外一方面它可以执行用户自定义任务，如定时进行 Channel 空闲状态的检测，其核心代码如下所示：
+
+```java
+protected void run() {
+    int selectCnt = 0;
+    for (;;) {
+        try {
+            int strategy;
+            try {
+				
+                // 1、计算执行策略
+                strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
+                switch (strategy) {
+                case SelectStrategy.CONTINUE:
+                    continue;
+
+                ...
+                }
+            } catch (IOException e) {
+                ...
+            }
+
+            selectCnt++;
+            cancelledKeys = 0;
+            needsToSelectAgain = false;
+            final int ioRatio = this.ioRatio;
+            boolean ranTasks;
+            if (ioRatio == 100) {
+                try {
+                    if (strategy > 0) {
+                        // 2、执行 I/O 事件
+                        processSelectedKeys();
+                    }
+                } finally {
+                    // 3、执行自定义任务
+                    ranTasks = runAllTasks();
+                }
+            } else if (strategy > 0) {
+                final long ioStartTime = System.nanoTime();
+                try {
+                    // 2、执行 I/O 事件
+                    processSelectedKeys();
+                } finally {
+                    
+                    final long ioTime = System.nanoTime() - ioStartTime;
+
+                    // 3、执行自定义任务
+                    ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
+                }
+            } else {
+                ranTasks = runAllTasks(0); // This will run the minimum number of tasks
+            }
+
+           ...
+		   
+        } catch (Throwable t) {
+            handleLoopException(t);
+        } finally {
+           ... 
+        }
+    }
+}
+
+```
+从上面的代码可以看到，根据计算的执行策略，可以为 I/O 事件处理及自定义任务分配不同的执行时间，详尽的代码在后面的文章介绍。
+ 
+```java
+private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
+   ...
+
+    try {
+        int readyOps = k.readyOps();
+
+        // 1、处理 OP_CONNECT 事件
+        if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
+            
+            int ops = k.interestOps();
+            ops &= ~SelectionKey.OP_CONNECT;
+            k.interestOps(ops);
+
+            unsafe.finishConnect();
+        }
+
+        // 2、处理 OP_WRITE 事件
+        if ((readyOps & SelectionKey.OP_WRITE) != 0) {
+            ch.unsafe().forceFlush();
+        }
+
+        // 3、处理 OP_READ 或 OP_ACCEPT 事件
+        if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
+            unsafe.read();
+        }
+    } catch (CancelledKeyException ignored) {
+        unsafe.close(unsafe.voidPromise());
+    }
+}
+```
+
+
+I/O 事件的处理本质是处理 channel 的各种 I/O 事件，其中将 OP_ACCEPT 抽象为 Netty的 read 事件，可以理解为读取的数据是 NioSocketChannel 对象，其代码如下所示：
+
+```java
+protected int doReadMessages(List<Object> buf) throws Exception {
+    SocketChannel ch = this.javaChannel().accept();
+
+    try {
+        if (ch != null) {
+            buf.add(new NioSocketChannel(this, ch));
+            return 1;
+        }
+    } catch (Throwable var6) {
+        logger.warn("Failed to create a new channel from an accepted socket.", var6);
+
+        try {
+            ch.close();
+        } catch (Throwable var5) {
+            logger.warn("Failed to close a socket.", var5);
+        }
+    }
+
+    return 0;
+}
+``` 
+
+可以看出来，NioServerSocketChannel 收到 OP_ACCEPT 事件后，会生成 SocketChannel 对象，然后通过 ServerBootstrapAcceptor handle 类处理后，注册到 workerGroup 中，再监听 SocketChannel 对象的 OP_READ 事件，最终实现网络数据的读写。
 
 ## 4. 总结
+
+通过对 Netty 中 Reactor 模型的分析，对 Netty 的线程模型及 I/O 的事件处理有了一个初步的认识，后续的文章将对涉及到的模块进行详尽的分析，希望能够深入理解 Netty 的设计思路。
 
