@@ -531,7 +531,7 @@ private static final class PowerOfTwoEventExecutorChooser implements EventExecut
 
 **1、NioServerSocketChannel 注册**
 
-![netty-bind](/images/netty/netty-bind.jpg "netty-bind")
+![netty-bind](/images/netty/netty-bind-v2.jpg "netty-bind")
 
 在 Netty 的服务器启动过程中，主要的流程是一个 bind 操作，其流程包括：
 - 创建 NioServerSocketChannel 类，完成初始化的工作，其中包括添加 ChannelHandler 类；
