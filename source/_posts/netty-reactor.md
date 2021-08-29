@@ -370,7 +370,7 @@ public class SelectorManager {
 ## 3. 实现
 
 Netty 实现了 Reactor 模式，其整体结构如下所示：
-![netty-reactor](/images/netty/netty-reactor.jpg "netty-reactor")
+![netty-reactor](/images/netty/netty-reactor-v2.jpg "netty-reactor")
 
 在 Netty 服务启动的时候会配置两个 EventLoopGroup bossGroup 和 WrokerGroup，EventLoopGroup 可以包含一个或多处 EventLoop，每一个 EventLoop 包含一个 Selector (也可能是 epoll，取决于实现)对象，同时它是一个独立的线程，可独立负载 I/O 请求。对比 Reactor，bossGroup 相当于 MainReactor，这负责监听网络的连接请求（生成 SocketChannle对象），并将其分配给 workerGroup，在这里，只包含一个 EventLoop；workerGroup 相当于 subReactor，监听连接的读写请求。下面分析下 Netty 中关于 EventLoopGroup 的代码实现。
 
