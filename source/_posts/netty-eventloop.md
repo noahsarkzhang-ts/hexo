@@ -11,7 +11,7 @@ categories:
 ## 1. 概述
 
 EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：
-1. 注册 MainActor 分配新的网络连接 (SocketChannel)，并监听 SocketChannel 对象的 I/O 事件；
+1. 负责监听 SocketChannel 对象的 I/O 事件；
 2. 处理分发 I/O 事件；
 3. 执行任务，包括定时任务。
 
@@ -660,4 +660,344 @@ protected int doReadBytes(ByteBuf byteBuf) throws Exception {
 
 ### 2.5 执行任务
 
+#### 2.5.1 执行流程
+
+执行任务相关的变量：
+
+```java
+// 任务队列
+private final Queue<Runnable> taskQueue;
+
+// 定时任务队列
+PriorityQueue<ScheduledFutureTask<?>> scheduledTaskQueue;
+```
+
+在 EventLoop 中，有两类任务，一是常规的任务，没有时间属性，二是周期性或延时的定时任务，它们分别存放到两个不同的队列。任务执行时，先将到期的定时任务从 scheduledTaskQueue 队列移动到 taskQueue 中，再统一执行 taskQueue 队列中的任务。
+
+任务执行的大致如下：
+1. 将到期的定时任务移动到 taskQueue 中；
+2. 计算此次执行的时长，如果执行的时间超过设定的执行时长，则退出进行下一轮的事件处理；
+3. 遍历执行 taskQueue 中的任务，在两种情况下退出任务的执行：1）任务的执行时长超过了设定的执行时长；2）taskQueue 队列为空；
+
+```java
+protected boolean runAllTasks(long timeoutNanos) {
+	// 1、将定时任务移动到 taskQueue 中
+    fetchFromScheduledTaskQueue();
+	
+	// 2、从 taskQueue 中取出任务
+    Runnable task = pollTask();
+    if (task == null) {
+        afterRunningAllTasks();
+        return false;
+    }
+	
+	// 3、计算任务执行的时长，如果超过传入的执行时长，需要退出进行下一轮的事件处理。
+    final long deadline = timeoutNanos > 0 ? ScheduledFutureTask.nanoTime() + timeoutNanos : 0;
+    long runTasks = 0;
+    long lastExecutionTime;
+    for (;;) {
+		
+		// 4、执行任务
+        safeExecute(task);
+
+        runTasks ++;
+
+        // 5、每执行完 64 个任务之后，判断是否超过传入的执行时长，若超过，则退出
+        if ((runTasks & 0x3F) == 0) {
+            lastExecutionTime = ScheduledFutureTask.nanoTime();
+            if (lastExecutionTime >= deadline) {
+                break;
+            }
+        }
+
+		// 6、执行下一个任务，如果任务为空，则退出
+        task = pollTask();
+        if (task == null) {
+            lastExecutionTime = ScheduledFutureTask.nanoTime();
+            break;
+        }
+    }
+
+    afterRunningAllTasks();
+    this.lastExecutionTime = lastExecutionTime;
+    return true;
+}
+```
+
+移动到期的定时任务逻辑相对简单：遍历 scheduledTaskQueue 队列，将到期的任务从 scheduledTaskQueue 队列中移除，再添加到 taskQueue 队列中，如果添加失败，则再添加回 scheduledTaskQueue 队列，等待下次再操作。
+
+```java
+private boolean fetchFromScheduledTaskQueue() {
+    // ...
+	
+	// 1、nanoTime 表示从程序启动到此时的时长；
+	// 时间的判断都是根据相对时间来判断，起始时间为程序启动的时间
+    long nanoTime = AbstractScheduledEventExecutor.nanoTime();
+    for (;;) {
+		
+		// 2、取出到期的任务
+        Runnable scheduledTask = pollScheduledTask(nanoTime);
+        if (scheduledTask == null) {
+            return true;
+        }
+		
+		// 3、将任务添加到 taskQueue 中
+        if (!taskQueue.offer(scheduledTask)) {
+           
+		   // 4、如果添加失败，再添加回 scheduledTaskQueue 队列，等待下次添加
+            scheduledTaskQueue.add((ScheduledFutureTask<?>) scheduledTask);
+            return false;
+        }
+    }
+}
+
+```
+
+在定时任务任务中超时的判断是基于相对时间的，起始时间为程序启动的时间。在 scheduledTask 中关联有一个任务执行的截止时间，将这个截止时间与当前计算的时间进行比较，小于当前的时间则说明已经过期，满足执行的条件，则需要将该任务移动到 taskQueue。
+
+另外，scheduledTaskQueue 是一个优先级队列，已经根据截止时间排序，队首的元素是最先到期的任务，如果取到了未到期的任务，则停止遍历，因为后面的任务截止时间更大，没有必要进行比较了。
+
+```java
+protected final Runnable pollScheduledTask(long nanoTime) {
+    assert inEventLoop();
+	
+	// 1、取出队首的任务
+    ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
+	
+	// 2、判断任务是否过期，判断的逻辑是：比较任务的截止时间与当前时间进行比较，如果
+	// 截止时间小于当前时间，则说明过期。
+    if (scheduledTask == null || scheduledTask.deadlineNanos() - nanoTime > 0) {
+        return null;
+    }
+	
+	// 3、移出对首的任务
+    scheduledTaskQueue.remove();
+    scheduledTask.setConsumed();
+    return scheduledTask;
+}
+
+private static final long START_TIME = System.nanoTime();
+// 计算相对时间
+static long nanoTime() {
+    return System.nanoTime() - START_TIME;
+}
+
+// 初始化 scheduledTaskQueue 队列
+PriorityQueue<ScheduledFutureTask<?>> scheduledTaskQueue() {
+    if (scheduledTaskQueue == null) {
+        scheduledTaskQueue = new DefaultPriorityQueue<ScheduledFutureTask<?>>(
+                SCHEDULED_FUTURE_TASK_COMPARATOR,
+                // Use same initial capacity as java.util.PriorityQueue
+                11);
+    }
+    return scheduledTaskQueue;
+}
+```
+
+#### 2.5.2 任务的添加
+上面分析了任务执行的流程，下面看下这两类任务怎么添加到任务队列中。
+
+**1、常规任务**
+
+常规任务是通过 execute 方法添加的，该方法含义上有执行的意思，但实际上执行该方法，只是将任务添加到 taskQueue 中，任务的执行最终是在 EventLoop 线程中完成的。
+
+```java
+// 添加一个常规任务
+public void execute(Runnable task) {
+    ObjectUtil.checkNotNull(task, "task");
+    execute(task, !(task instanceof LazyRunnable) && wakesUpForTask(task));
+}
+
+// 添加或执行任务
+private void execute(Runnable task, boolean immediate) {
+    boolean inEventLoop = inEventLoop();
+	
+	// 将任务添加到 taskQueue 队列
+    addTask(task);
+    if (!inEventLoop) {
+		// 如果当前线程不是 EventLoop 线程，则尝试启动 EventLoop 线程。
+        startThread();
+        // ...
+    }
+
+	// 如果任务不是 LazyRunnable 或 NonWakeupRunnable 子类，则
+	// 唤醒 EventLoop 线程，立即执行任务
+    if (!addTaskWakesUp && immediate) {
+        wakeup(inEventLoop);
+    }
+}
+
+// 添加任务
+protected void addTask(Runnable task) {
+    ObjectUtil.checkNotNull(task, "task");
+	
+	// 如果任务添加不成功，则拒绝任务
+    if (!offerTask(task)) {
+        reject(task);
+    }
+}
+
+// 添加任务到 taskQueue 中
+final boolean offerTask(Runnable task) {
+    if (isShutdown()) {
+        reject();
+    }
+    return taskQueue.offer(task);
+}
+```
+
+**2、定时任务**
+定时任务有两种：1）延时任务；2）周期性任务。它们是通过 schedule 方法添加，方法定义如下所示：
+
+```java
+
+// 延时任务
+@Override
+ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit);
+
+// 带返回结果的延时任务
+@Override
+<V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit);
+
+// 固定比率的周期性任务
+@Override
+ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit);
+
+// 固定延时的周期性任务
+@Override
+ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit);
+```
+
+两种类型的定时任务统一封装为 ScheduledFutureTask 任务，添加一个定时任务实际就是添加一个 ScheduledFutureTask 对象到 scheduledTaskQueue 中。添加 ScheduledFuture 的过程中，如果当前线程就是 EventLoop 线程，则直接操作即可，如果当前线程不是 EventLoop 线程，则添加一个常规任务，用来执行该操作。这样设计，应该是出于线程安全的考虑，保证只有 EventLoop 线程执行添加操作。在这里，还需要考虑定时任务已经过期，需要唤醒 EventLoop 线程执行任务。
+
+```java
+private <V> ScheduledFuture<V> schedule(final ScheduledFutureTask<V> task) {
+
+	// 如果当前线程是 EventLoop 线程则直接将任务添加到 scheduledTaskQueue 中；
+	// 如果不是，添加一个常规任务，用来执行添加操作。
+    if (inEventLoop()) {
+        scheduleFromEventLoop(task);
+    } else {
+		// 计算任务执行的截止时间
+        final long deadlineNanos = task.deadlineNanos();
+        
+		// 比较任务的执行时间与 EventLoop 线程被唤醒的时间的大小，
+		// 如果小于线程的唤醒时间，除了向 taskQueue 添加任务之外，需要唤醒线程执行任务；
+		// 如果大于线程的唤醒时间，只是向 taskQueue 添加任务，不需要唤醒线程。
+        if (beforeScheduledTaskSubmitted(deadlineNanos)) {
+            execute(task);
+        } else {
+            lazyExecute(task);
+            if (afterScheduledTaskSubmitted(deadlineNanos)) {
+                execute(WAKEUP_TASK);
+            }
+        }
+    }
+
+    return task;
+}
+
+// 向 scheduledTaskQueue 队列添加定时任务
+final void scheduleFromEventLoop(final ScheduledFutureTask<?> task) {
+    // nextTaskId a long and so there is no chance it will overflow back to 0
+    scheduledTaskQueue().add(task.setId(++nextTaskId));
+}
+
+// 判断任务的执行截止时间与 EventLoop 线程被唤醒的时间的大小
+protected boolean beforeScheduledTaskSubmitted(long deadlineNanos) {
+    // Note this is also correct for the nextWakeupNanos == -1 (AWAKE) case
+    return deadlineNanos < nextWakeupNanos.get();
+}
+
+```
+
+ScheduledFutureTask 对象封装了三个功能：
+1. 执行添加任务，将 ScheduledFutureTask 对象本身添加到 scheduledTaskQueue 队列；
+2. 执行延时任务，由于延时任务只会执行一次，执行完便结束；
+3. 执行周期性任务，执行完本轮的任务之外，还需要将 ScheduledFutureTask 添加回 scheduledTaskQueue 队列，等待下一轮执行。
+
+```java
+
+final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFuture<V>, PriorityQueueNode {
+    private static final long START_TIME = System.nanoTime();
+	
+	// set once when added to priority queue
+    private long id;
+
+    private long deadlineNanos;
+	
+	// periodNanos 表示任务的任务：
+	// 0 - no repeat, >0 - repeat at fixed rate, <0 - repeat with fixed delay 
+    private final long periodNanos;
+	
+	private int queueIndex = INDEX_NOT_IN_QUEUE;
+
+    static long nanoTime() {
+        return System.nanoTime() - START_TIME;
+    }
+
+    static long initialNanoTime() {
+        return START_TIME;
+    }
+	
+	// ...
+
+    @Override
+    public void run() {
+        assert executor().inEventLoop();
+        try {
+			
+			// 如果未到期，则执行添加任务
+            if (delayNanos() > 0L) {
+                // Not yet expired, need to add or remove from queue
+                if (isCancelled()) {
+                    scheduledExecutor().scheduledTaskQueue().removeTyped(this);
+                } else {
+					// 向 scheduledTaskQueue 添加自己
+                    scheduledExecutor().scheduleFromEventLoop(this);
+                }
+                return;
+            }
+			
+			// 如果是延时任务，只需要执行一次
+            if (periodNanos == 0) {
+                if (setUncancellableInternal()) {
+					// 执行任务
+                    V result = runTask();
+					
+					// 通知执行成功
+                    setSuccessInternal(result);
+                }
+            } else { // 如果是周期性任务，执行完任务之后，还需要重新再调度
+                // check if is done as it may was cancelled
+                if (!isCancelled()) {
+					// 执行任务
+                    runTask();
+                    if (!executor().isShutdown()) {
+                        if (periodNanos > 0) {
+                            deadlineNanos += periodNanos;
+                        } else {
+                            deadlineNanos = nanoTime() - periodNanos;
+                        }
+                        if (!isCancelled()) {
+							
+							// 添加回 scheduledTaskQueue 队列，等待下一次执行
+                            scheduledExecutor().scheduledTaskQueue().add(this);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable cause) {
+            setFailureInternal(cause);
+        }
+    }
+
+	// ... 
+}
+
+```
+至此，任务的执行分析完毕。
+
 ## 3. 总结
+
+EventLoop 担当了网络层与 Netty 框架间的桥梁作用，本质是一个事件循环，不断监听 Channel 的网络 I/O 事件，并进行分发处理。另外，也承担了执行任务的作用，包括常规的任务及定时任务。理解 EventLoop 的事件循环会极大加深对 Netty 的理解。
