@@ -92,5 +92,5 @@ symbols_count_time:
   total_symbols: true
   # 站点总阅读时间统计
   total_time: true
-  exclude_codeblock: false
+  exclude_codeblock: true
 
