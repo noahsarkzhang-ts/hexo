@@ -195,7 +195,7 @@ AMQP.Queue.DeclareOk queueDeclare​(String queue, boolean durable, boolean excl
 - queue: queue 名称
 - durable: 是否持久化，若为 true，服务器重启后，queue 仍然存在
 - exclusive: 是否具有排他性，若为 true, 不允许其它客户端连接
-- autoDelete: 是否自动删除，若true, 队列没有使用时，则为自动删除
+- autoDelete: 是否自动删除，若为 true, 队列没有使用时，则为自动删除
 - arguments: 其它参数
 
 **QueueBind​ 申明：**
@@ -217,9 +217,15 @@ void basicPublish​(String exchange, String routingKey, boolean mandatory, AMQP
 参数说明：
 - exchange: exchange 名称
 - routingKey: 路由 key
-- mandatory: true if the 'mandatory' flag is to be set
-- props: other properties for the message - routing headers etc
-- body: the message body
+- mandatory: 若为 tue,表示消息若不能路由，则将消息 return 给发送者，发送者可以定义重发逻辑，若为 false, 则将消息丢弃或发送给另外的 exchange
+- props: 参数，可以指定消息的类型或是否持久化
+- body: 消息内容
+
+示例：
+```java
+channel.basicPublish(exchangeName, routingKey, true, MessageProperties.PERSISTENT_TEXT_PLAIN,
+                        body.getBytes("UTF-8"));
+```
 
 <font color='red'>** 说明: **</font>
 <font color='red'>在 RabbitMQ 中，exchange 及 queue 不用提前创建，调用上面的申明方法时，如果没有不存在，则会自动创建。</font>
