@@ -301,6 +301,24 @@ rabbitmqctl set_permissions -p alligator  allen '.*' '.*' '.*'
 
 ```
 
+### 3.5 管理后台
+RabbitMQ 默认创建了 guest(密码为 guest)，处于安全考虑，建议删除该用户，新建一个自定义用户，用于后台的管理。
+
+```bash
+// 删除 guest 用户
+rabbitmqctl delete_user guest
+
+// 新建 admin 用户
+rabbitmqctl add_user admin ********
+
+// 设置 admin 为 administrator 角色
+rabbitmqctl set_user_tags admin administrator
+
+// 将 / (vhost) 所有权限授权给 admin
+rabbitmqctl set_permissions -p / admin '.*' '.*' '.*'
+
+```
+
 </br>
 
 **参考：**
