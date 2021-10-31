@@ -15,7 +15,7 @@ categories:
 $ docker search mysql
 
 # 下载 Redis 镜像
-$ docker pull mysql:6.2
+$ docker pull redis:6.2
 
 # 查看下载镜像
 $ docker images
@@ -79,6 +79,10 @@ $ docker run -d \
 - -d：后台运行
 - redis-server --appendonly yes： 在容器执行redis-server启动命令，并打开redis持久化配置
 
+**Redis 目录说明：**
+- 配置文件： /etc/redis/redis.conf
+- 数据文件目录：/data
+
 **说明：**
 Redis docker 镜像默认无配置文件。
 
@@ -91,9 +95,13 @@ $ docker ps
 
 # 进入容器
 $ docker exec -it redis6.2 redis-cli 
-127.0.0.1:6379> 
+127.0.0.1:6379> auth default 123456
 
 # 或者使用 bash 命令
 $ docker exec -it redis6.2 bash
 $ redis-cli
 ```
+
+**说明：**
+ 在 Redis6.0 之前的版本中，登陆 Redis Server 只需要输入密码（前提配置了密码 requirepass ）即可，不需要输入用户名，而且密码也是明文配置到配置文件中，安全性不高。另外应用连接也使用该密码，导致应用有所有权限，风险极高。在 Redis6.0 引入了 ACL，可以按照不同的需求设置相关的用户和权限。
+ Redis ACL 是向后兼容的，即默认情况下用户为 default，使用的是 requirepass 配置的密码。如果不配置密码，输入任何字符串都可以认证通过，包括空字符串（不过密码字段不能省略）。要是不使用ACL功能，对旧版客户端来说完全一样。
