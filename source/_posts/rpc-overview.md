@@ -19,32 +19,46 @@ Wikipedia 对 RPC 的解释：
 3. RPC 封装了底层通信的细节，不需要开发人员显示地编码。
 
 下面以一个例子说明：
+
+**接口定义：**
+```
+public interface HelloService {
+    String sayHello(String message);
+}
+```
+
 **客户端：**
 
 ```java
-HelloService helloService = getProxy(HelloService.class,"127.0.0.1",2580);
-helloService.sayHello("hi, charles");
- 
-public <T> T getProxy(Class<T> interfaceClass, String host, int port){ 
-    return (T) Proxy.newProxyInstance(interfaceClass.getClassLoader(), 
-			new Class<?>[] {interfaceClass},  
-            new InvocationHandler() { 
-			
-				public Object invoke(Object proxy, Method method, Object[] 
-						arguments) throws Throwable { 
-				Socket socket = new Socket(host, port); 
-				ObjectOutputStream output = new 
-				ObjectOutputStream(socket.getOutputStream()); 
-				
-				output.writeUTF(method.getName()); 
-				output.writeObject(method.getParameterTypes()); 
-				output.writeObject(arguments); 
-				
-				ObjectInputStream input = new 
-					ObjectInputStream(socket.getInputStream()); 
-				
-				return input.readObject();} 
-        }); 
+public class HelloClient {
+
+    public static void main(String[] args) {
+        HelloService helloService = getProxy(HelloService.class,"127.0.0.1",10240);
+        String result = helloService.sayHello("hi, charles");
+
+        System.out.println("result = " + result);
+    }
+
+    public static  <T> T getProxy(Class<T> interfaceClass, String host, int port){
+        return (T) Proxy.newProxyInstance(interfaceClass.getClassLoader(),
+                new Class<?>[] {interfaceClass},
+                new InvocationHandler() {
+
+                    public Object invoke(Object proxy, Method method, Object[]
+                            arguments) throws Throwable {
+                        Socket socket = new Socket(host, port);
+                        ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+
+                        output.writeUTF(method.getName());
+                        output.writeObject(method.getParameterTypes());
+                        output.writeObject(arguments);
+
+                        ObjectInputStream input = new
+                                ObjectInputStream(socket.getInputStream());
+
+                        return input.readObject();}
+                });
+    }
 }
 
 ```
@@ -54,28 +68,59 @@ public <T> T getProxy(Class<T> interfaceClass, String host, int port){
 **服务器：**
 
 ```java
-public String sysHello(String input){return input+ ",wellcome."} 
+// 接口实现类
+public class HelloServiceImpl implements HelloService {
+    @Override
+    public String sayHello(String message) {
+        return message;
+    }
+}
 
-public void static main(String[] args){ 
-	ServerSocket server = new ServerSocket(port); 
-	for(;;) { 
-	final Socket socket = server.accept();    
-	new Thread(new Runnable() { 
-		ObjectInputStream input = new 
-				ObjectInputStream(socket.getInputStream()); 
-		String methodName = input.readUTF(); 
-		Class<?>[] parameterTypes = (Class<?>[])input.readObject(); 
-		Object[] arguments = (Object[])input.readObject(); 
-		ObjectOutputStream output = new 
-					ObjectOutputStream(socket.getOutputStream()); 
-		Method method = service.getClass().getMethod(methodName, 
-			parameterTypes); 
-		Object result = method.invoke(service, arguments); 
-		output.writeObject(result); 
-		} ).start(); 
-}}
+// 服务器
+public class HelloServer {
+
+    public static void main(String[] args) {
+
+        int port = 10240;
+        HelloService service = new HelloServiceImpl();
+
+        System.out.println("server startup...");
+        try {
+            ServerSocket server = new ServerSocket(port);
+            for (; ; ) {
+                final Socket socket = server.accept();
+                new Thread(() -> {
+                    try {
+                        ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+
+                        String methodName = input.readUTF();
+                        Class<?>[] parameterTypes = (Class<?>[]) input.readObject();
+                        Object[] arguments = (Object[]) input.readObject();
+
+                        System.out.println("receive request:");
+                        System.out.println("method:" + methodName);
+
+                        ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+                        Method method = service.getClass().getMethod(methodName,parameterTypes);
+
+                        Object result = method.invoke(service, arguments);
+                        System.out.println("result = " + result);
+
+                        output.writeObject(result);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+}
+
 ```
-在服务端实现接口，监听网络的请求，按照协议，反序列化方法名及参数，并通过反射的方式映射到具体的接口实现，转换为本地方法调用，调用结束之后，再将结果返回给客户端。3
+在服务端实现接口，监听网络的请求，按照协议，反序列化方法名及参数，并通过反射的方式映射到具体的接口实现，转换为本地方法调用，调用结束之后，再将结果返回给客户端。
 
 一句话总结：RPC 就是一种网络编程技术，结合代理、序列化/反序列技术，通过一定的通信协议，实现类似本地方法调用的功能。
 
