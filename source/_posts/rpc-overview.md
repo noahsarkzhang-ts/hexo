@@ -3,8 +3,13 @@ title: RPC：RPC 概述
 date: 2021-11-07 20:04:33
 tags:
 - rpc
-categoris:
-- rpc
+- send-oneway
+- request-response
+- request-stream
+- stream-response
+- stream-stream
+categories:
+- RPC
 ---
 
 这篇文章是 RPC 系列的第一篇，打算写一个系列的文章，简单介绍下 Duboo2, Dubbo3, gRPC 及 RScoket 的使用方法及差异。在 Alligator 项目中借鉴了其中的一些思想，基于 TCP, Websocket 及 MQ，实现了一个简单的 RPC。RPC 涉及到内容比较多，这里选取了两个方面做为切入点：1）通信模式，包括 request-response, request-stream, stream-response, stream-stream, send-oneway; 2）协议，主要是协议字段，通过这些字段可以大概猜测出其实现方式。
@@ -125,6 +130,33 @@ public class HelloServer {
 一句话总结：RPC 就是一种网络编程技术，结合代理、序列化/反序列技术，通过一定的通信协议，实现类似本地方法调用的功能。
 
 ## 通信模式
+RPC 一般有如下五种通信模式。
+### Send-Oneway
+特点：只发送请求数据，服务器不需要响应，适用于发送一些不关键的数据，如日志上报。
+![send-oneway](/images/rpc/send-oneway.jpg "send-oneway")
 
+### Request-Response
+特点：最常见的模式，客户端发送一个请求，服务器响应一个结果。
+![unary-rpc](/images/rpc/unary-rpc.jpg "unary-rpc")
+
+### Reqeust-Stream
+特点：发送一个请求，可以返回多个响应结果。
+![request-stream-rpc](/images/rpc/request-stream-rpc.jpg "request-stream-rpc")
+
+### Stream-Response
+特点：发送多个请求，响应一个结果。
+![stream-response-rpc](/images/rpc/stream-response-rpc.jpg "stream-response-rpc")
+
+### Stream-Stream
+特点：双向流的模式，客户端及服务器都向对方发送多个数据，互不干扰。
+![stream-stream-rpc](/images/rpc/send-oneway.jpg "stream-stream-rpc")
+
+## 总结
+一个完整的 RPC 流程包括三个步骤：
+1. 定义接口：可以使用中间语言，也可以使用特定的语言定义，如 JAVA；
+2. 生成客户端代理：根据接口定义，通过代码生成客户端代理，它封装了向服务端请求的代码；
+3. 编写服务器接口实现：生成服务器通信代码及编写接口的实现。
+
+一个 RPC 框架通常提供代码生成的功能，客户端代理、服务器通信功能、序列化/反序列化的代码都会生成，开发者只需要编写接口定义及接口实现即可。
 
 
