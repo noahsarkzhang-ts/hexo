@@ -3,6 +3,7 @@ title: RPC：gRPC
 date: 2021-11-14 20:05:48
 tags:
 - grpc
+- http2
 categories:
 - RPC
 ---
@@ -13,12 +14,12 @@ categories:
 Wikipiedia 对 gRPC 的描述：
 > gRPC (gRPC Remote Procedure Calls[1]) 是 Google 发起的一个开源远程过程调用 (Remote procedure call) 系统。该系统基于 HTTP/2 协议传输，使用 Protocol Buffers 作为接口描述语言。
 提供的功能有：
-- 认证（ authentication）
-- 双向流（bidirectional streaming）
-- 流控制（flow control）
-- 超时（timeouts）
+- 认证（ authentication）;
+- 双向流（bidirectional streaming）;
+- 流控制（flow control）;
+- 超时（timeouts）。
 
-在这篇文章重点是基于 HTTP2 协议，如何实现双向流。
+在这篇文章重点是讲述基于 HTTP2 协议，如何实现双向流。
 
 ## Java gRPC 实例
 
@@ -135,7 +136,7 @@ gRPC 使用的版本是 1.41.0
 </build>
 ```
 
-执行 mvn package 打包时便生成 gRPC 的代码。
+执行 mvn package 命令便生成 gRPC 相关的代码。
 
 ### 定义接口文件
 
@@ -484,8 +485,139 @@ public class HelloWorldServer {
 ```
 
 ## HTTP2
+gRPC 底层的通信协议是 HTTP2，其 stream 的特性就是基于 HTTP2 stream 来实现的，要理解 gRPC 的实现，首先先要理解 HTTP2 协议。
+
+### HTTP 演进
+HTTP 内容比较多，每一次版本升级的特性也比较多，我们在这里仅仅选择“连接复用”的角度来阐述 HTTP 的演进。 
+
+**HTTP 1.0**
+在 HTTP 1.0 协议中，一个 TCP 连接只承载了一次网络请求，TCP 的复用率比较低，如下图所示：
+![http1.0](/images/rpc/http1.0.jpg "http1.0")
+
+在这种场景下，建立 tcp 连接占了较大一部分开销，为了提高 TCP 的复用率，HTTP 1.1 引入了“持久连接”和“管道”的技术。
+
+**HTTP 1.1**
+在 HTTP 1.1 协议中，一个 TCP 连接可以被多个 HTTP 请求共享，这些请求是按序发送，下一个请求必须在上一个请求收到响应之后才能发送，如下图所示：
+
+![http1.1](/images/rpc/http1.1.jpg "http1.1")
+
+为了提高发送的效率，HTTP 1.1 引入了“管道”技术，可以并行地发送多个 HTTP 请求，而不用等待上一个请求的响应。但响应结果仍然是有序的，即上一个请求的响应发送之后，才能发送下一个请求的响应。这就引发了 HTTP 的队头阻塞（head-of-line blocking）问题，上一个请求的响应会影响后续的响应。如果前一个请求的结果比较大，就会阻塞后续请求的响应。
+
+**HTTP 2.0**
+HTTP 2.0 为了解决 HTTP 队头阻塞的问题，引入了 stream 的概念。将一个 TCP 连接逻辑划分为多个 stream，每一个 stream 可独立负责一个 HTTP 请求，这些 stream 之间，1）可并行交错地发送多个请求，请求之间互不影响；2）可并行交错地发送多个响应，响应之间互不干扰；3）使用一个连接并行发送多个请求和响应。如下图所示：
+
+![http2-multiplexing](/images/rpc/http2-multiplexing.svg "http2-multiplexing")
+
+HTTP 2.0 解决了 HTTP 队头阻塞的问题，但由于 HTTP 2.0 底层传输协议仍然是 TCP 协议，TCP 协议本身也有队头阻塞（head-of-line blocking）问题，其主要原因是数据包超时确认或丢失阻塞了滑动窗口向右滑动，阻塞了后续数据的发送，如下图所示：
+
+![tcp-sliding-window-v1](/images/rpc/tcp-sliding-window-v1.jpg "tcp-sliding-window-v1")
+
+未收到 ACK 确认的消息将会占用滑动窗口，压缩了可发送窗口的大小。
+
+**HTTP 3.0**
+由于 TCP 存在队头阻塞的问题，下一代的 HTTP 3.0 将可能改用 UDP 协议，如 QUIC，它在 UDP 的基础上实现类似 TCP connection 的概念。
+
+### HTTP2 功能
+相比于 HTTP 1.0, HTTP2 所有的数据使用二进制帧进行封装，极大地提高了客户端与服务器之间的传输效率，如下图所示:
+![binary_framing_layer01](/images/rpc/binary_framing_layer01.svg "binary_framing_layer01")
+
+在 HTTP2 中有三个重要的概念：
+- 数据流(stream): 已建立的连接内的双向字节流，可以承载一条或多条消息；
+- 消息(message): 与逻辑请求或响应消息对应的完整的一系列帧；
+- 帧(frame):HTTP2 通信的最小单位，每个帧都包含帧头，至少也会标识出当前帧所属的数据流。
+
+它们之间的关系如下：
+- 所有通信都在一个 TCP 连接上完成，此连接可以承载任意数量的双向数据流；
+- 每个数据流都有一个唯一的标识符和可选的优先级信息，用于承载双向消息；
+- 每条消息都是一条逻辑 HTTP 消息（例如请求或响应），包含一个或多个帧；
+- 帧是最小的通信单位，承载着特定类型的数据，例如 HTTP 标头、消息负载等等。 来自不同数据流的帧可以交错发送，然后再根据每个帧头的数据流标识符重新组装。
+
+![streams_messages_frames01](/images/rpc/streams_messages_frames01.svg "streams_messages_frames01")
+
+在一个 TCP 连接上承载了不同的 HTTP 请求，互不干扰。
+
+**二进制帧协议**
+一个二进制帧包括两个部分，一个是 8 字节的首部，其中包含帧的长度、类型、标志，还有一个保留位和一个31位的流标识符；另外一部分是实际传输的数据，如下图所示：
+
+![http2-binary-frame-format.](/images/rpc/http2-binary-frame-format.png "http2-binary-frame-format")
+
+首部的定义如下：
+- 16 位的长度意味着一帧可以携带最大 64 KB 的数据，不包括 8 字节首部；
+- 8 位的类型字段决定如何解释帧的内容；
+- 8 位的标志位字段允许不同的帧类型定义特定于帧的消息标志，<strong><font color='red'>流的结束可以通过标志位来表示</font></strong>；
+- 1 位的保留字段始终置为 0；
+- 31 位的流标识字段唯一标识 HTTP 2.0 的流。
+
+其中帧类型可以分为：
+- DATA：用于传输 HTTP 消息体；
+- HEADERS：用于传输 HTTP header；
+- SETTINGS：用于约定客户端和服务端的配置数据；
+- WINDOW_UPDATE：用于调整个别流或个别连接的流量；
+- PRIORITY： 用于指定或重新指定引用资源的优先级；
+- RST_STREAM： 用于通知流的非正常终止；
+- PUSH_PROMISE： 服务端推送许可；
+- PING：用于计算往返时间，用于保活；
+- GOAWAY：用于通知对端停止在当前连接中创建流；
+- CONTINUATION：用于继续一系列的 HEADERS。
 
 ## gRPC over HTTP2
+gRPC 通常有四种模式，unary,client streaming,server streaming 以及 bidirectional streaming，对应 request-response, stream-response, request-stream 及 stream-stream， 对于底层 HTTP/2 来说，它们都是 stream，并且仍然是一套 request + response 模型。
+
+### 通信协议
+gRPC 协议中的 Request 及 Response 定义如下：
+```txt
+Request → Request-Headers *Length-Prefixed-Message EOS
+Response → (Response-Headers *Length-Prefixed-Message Trailers) / Trailers-Only
+```
+Request 主要包含三个部分：1）一个消息头： Request-Headers; 2）消息内容：0 或 多个 Length-Prefixed-Message; 3）EOS（end-of-stream）: 用来表示 stream 不会在发送任何数据，可以关闭了。 
+
+Response 主要包含三个部分：1）一个消息头：Response-Headers; 2) 消息内容：0 或 多个 Length-Prefixed-Message; 3）Trailers; 如果报错了，只会返回 Trailers-Only，在 Trailers 中会包含 stream 结束标志。
+
+在 Protocol Buffers 定义的方法可以很方便地跟 HTTP2 中的相关 Header 关联起来：
+```go
+Path : /Service-Name/{method name}
+Service-Name : ?( {proto package name} "." ) {service name}
+Message-Type : {fully qualified proto message name}
+Content-Type : "application/grpc+proto"
+```
+
+### 实例
+以官方给的 unary 为例，其消息包含如下内容：
+
+**Request:**
+```go
+HEADERS (flags = END_HEADERS)
+:method = POST
+:scheme = http
+:path = /google.pubsub.v2.PublisherService/CreateTopic
+:authority = pubsub.googleapis.com
+grpc-timeout = 1S
+content-type = application/grpc+proto
+grpc-encoding = gzip
+authorization = Bearer y235.wef315yfh138vh31hv93hv8h3v
+
+DATA (flags = END_STREAM)
+<Length-Prefixed Message>
+```
+
+**Response:**
+```go
+HEADERS (flags = END_HEADERS)
+:status = 200
+grpc-encoding = gzip
+content-type = application/grpc+proto
+
+DATA
+<Length-Prefixed Message>
+
+HEADERS (flags = END_STREAM, END_HEADERS)
+grpc-status = 0 # OK
+trace-proto-bin = jher831yy13JHy3hc
+```
+
+## 总结
+gRPC 基于底层 HTTP2 协议实现了 stream 的操作，换句话说，gRPC 不能脱离 Http2 单独存在，这跟 Rscoket 的设计理念是不一样的，Rscoket 是一种应用层协议，它对底层协议没有限制，只要支持 “连接” 的概念，甚至可以基于 UDP 来实现。从这一点来说，gRPC 跟 HTTP2 协议是强依赖的。
+
 
 </br>
 
@@ -494,29 +626,24 @@ public class HelloWorldServer {
 ----
 [1]:https://grpc.io/docs/what-is-grpc/core-concepts/
 [2]:https://zh.wikipedia.org/wiki/GRPC
-[3]:https://www.rabbitmq.com/confirms.html
-[4]:https://www.rabbitmq.com/vhosts.html
-[5]:https://www.rabbitmq.com/queues.html
-[6]:https://www.rabbitmq.com/getstarted.html
-[7]:https://www.rabbitmq.com/access-control.html
-[8]:https://www.rabbitmq.com/rabbitmqctl.8.html
-[9]:https://www.rabbitmq.com/production-checklist.html
+[3]:https://blog.csdn.net/zhuyiquan/article/details/69257126?utm_medium=distribute.pc_relevant.none-task-blog-2~default~BlogCommendFromMachineLearnPai2~default-1.control&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2~default~BlogCommendFromMachineLearnPai2~default-1.control
+[4]:https://www.cnblogs.com/xiaolincoding/p/12732052.html
+[5]:https://developers.google.com/web/fundamentals/performance/http2?hl=zh-cn
+[6]:https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
+[7]:https://pingcap.com/zh/blog/grpc
 
 [1. Core concepts, architecture and lifecycle][1]
 
 [2. gRPC][2]
 
-[3. Consumer Acknowledgements and Publisher Confirms][3]
+[3. HTTP 2.0 原理详细分析][3]
 
-[4. Virtual Hosts][4]
+[4. 30张图解：TCP 重传、滑动窗口、流量控制、拥塞控制][4]
 
-[5. queues][5]
+[5. HTTP/2 简介][5]
 
-[6. RabbitMQ Tutorials][6]
+[6. gRPC over HTTP2][6]
 
-[7. Authentication, Authorisation, Access Control][7]
+[7. 深入了解 gRPC：协议][7]
 
-[8. rabbitmqctl(8)][8]
-
-[9. Production Checklist][9]
 
