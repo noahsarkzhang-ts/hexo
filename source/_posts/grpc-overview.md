@@ -633,17 +633,11 @@ gRPC 基于底层 HTTP2 协议实现了 stream 的操作，换句话说，gRPC �
 [7]:https://pingcap.com/zh/blog/grpc
 
 [1. Core concepts, architecture and lifecycle][1]
-
 [2. gRPC][2]
-
 [3. HTTP 2.0 原理详细分析][3]
-
 [4. 30张图解：TCP 重传、滑动窗口、流量控制、拥塞控制][4]
-
 [5. HTTP/2 简介][5]
-
 [6. gRPC over HTTP2][6]
-
 [7. 深入了解 gRPC：协议][7]
 
 
