@@ -16,6 +16,8 @@ categories:
 
 ChannelPipeline 可以理解为一个 ChannelHandler 列表，而 ChannelHandler 是一个能够独立处理 channel 入站 (inbound) 事件或出站 (outbound) 操作的处理器。ChannelPipeline 实现了 "Intercepting Filter" 模式，它给用户提供了事件处理及 ChannelHandler 之间交互的能力，用户可以根据业务场景定义 ChannelHandler，以类似插件的方式添加到 ChannelPipeline 中。
 
+<!-- more -->
+
 ### 1.1 整体流程
 
 每一个 channel 都包含一个属于自己的 ChannelPipeline，在创建 channel 的时候自动创建，下图描述了 ChannelPipeline 是如何处理 I/O 事件的，一个 I/O 事件要么被 ChannelInboundHandler 处理，要么被 ChannelOutboundHandler，同时通过 ChannelHandlerContext 将事件传递给下一个 ChannelHandler，如通过如下方法：ChannelHandlerContext#fireChannelRead(Object) 和 ChannelHandlerContext#write(Object)

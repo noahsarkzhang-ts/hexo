@@ -12,6 +12,8 @@ NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册�
 ![rocketmq-namesrv-overview](/images/rocketmq-namesrv-overview.jpg "rocketmq-namesrv-overview")
 NameServer可以分为三个层次（暂且这么分，方便理解），1）通信层，使用 Netty 作为底层通信组件，封装统一的网络 IO 事件处理流程，同时用户也可以自定义事件。2）服务层，封装通用的业务逻辑：a）统一请求处理流程；b）定义三种调用方式，如同步调用，异步调用及单向调用（发出请求不需要响应数据）；c）响应超时处理；d）IO事件处理。3）业务层，实现请求处理器及事件监听器注册接口，处理NameServer相关的数据，如broker地址及保活信息、topic队列信息及服务器过滤信息。
 
+<!-- more -->
+
 - 通信层：Netty 使用 Reactors 的多线程模型，MainReactor 负责客户端的连接请求，并将请求转交给 SubReactor，SubReactor 负责相应通道的 IO 读写请求。在这里，BossGroup 承担MainReactor的角色，一般只需要一个线程即可（一个 EventLoop 实质就是一个线程），Work Group 承担 SubReactor 的角色，在RomcketMQ中默认是三个线程。从上面的关系可以看出，EventLoopGroup 包含多个 EventLoop，而一个 EventLoop 代表了一个独立的事件循环，循环等待 IO 事件，一般由一个线程来处理，一个 EventLoop 可以同时处理多个 tcp 连接（Channel），同时一个 Channel 所有事件只能在一个 EventLoop 中处理，一个 Channel 一旦分配给一个 EventLoop 之后将不会改变这种关联关系。在 Netty 中事件处理使用了责任链的模式，将事件处理分为不同的处理单元，让数据以水流的方式在管道中流动处理，每一个阀门都有一个独立的处理逻辑，这些处理单元包括但不限此，如数据的编/解码、数据的转换、空闲连接的检测及数据的消费，在 Netty 中，这些处理单元叫做 Handler 对象。每一个 Handler 对象存储在 ChannelHandlerContext 对象中，再将 ChannelHandlerContext 对象串连起来，形成一个双向链表。根据处理事件的不同，Handler 对象可以分为出站或入站对象，入站代表读事件，出站代表了写事件，所以，访问 ChannelHandlerContext 链表也分为出站和入站两种，入站从链首开始，正向访问，而出站则从链尾开始，反向访问。 在 ChannelPipeline 对象中，存储 ChannelHandlerContext 链表的链首及链尾对象，每一个 Channel 对象都会关联一个 ChannelPipeline 对象，在处理事件的时候，可方便调用相应的 Handler 对象，上层应用只要定义相应的 Handle对象 到Netty中即可。下图是 EventLoop 处理事件的流程。
 ![rocketmq-namesrv-netty](/images/rocketmq-namesrv-netty.jpg "rocketmq-namesrv-netty")
 可以看到，EventLoop 主要处理三件事：1）在多路复用器 Selector 上调用 select 方法，监听所有的 Channel的 IO 事件；2）执行 IO 处理流程，调用 ChannelHandlerContext 链表，执行业务处理；3）执行提交的任务，在 EventLoop 中，可以处理定时任务，在处理完业务逻辑之后，会调用已经到期的任务执行。定时任务存放在一个优先级队列（scheduleTaskQueue队列，实现类为PriorityQueue队列）中，按照时间进行排序，执行任务前会将已经到期的任务移到 taskQueue 队列中，然后依次执行 taskQueue 队列中的所有任务。

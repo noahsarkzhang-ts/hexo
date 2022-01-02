@@ -11,6 +11,8 @@ categories:
 RSocket 官网对 RSocket 定义：
 > RSocket is a binary protocol for use on byte stream transports such as TCP, WebSockets, and Aeron.RSocket provides a protocol for Reactive Streams semantics between client-server, and server-server communication.
 
+<!-- more -->
+
 RSocket 是一个构建在字节流传输协议，如 TCP, WebSocket 和 Aeron(UDP) 之上的二进制协议，同时，它也是一个为client-server,server-server 之间通信提供了反应式流语义的协议。本质上来说，RSocket 是基于反应式编程的一个二进制协议。一个反应式系统应该具备如下特征：
 - Responsive: 只要有可能，系统就会及时地作出反应;
 - Resilient: 系统出现 failure 时仍然保持响应性，并能够独立恢复;

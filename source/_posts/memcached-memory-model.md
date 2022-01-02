@@ -11,6 +11,8 @@ categories:
 ---
 Memcached是一个基于内存的缓存系统，存储的是key/value的键值对，与Redis类似。不过相对于Redis，值是无类型的字节数组（类比于Reidis中的String类型）。在Reidis中构建了一个对象系统来存储键值对，Memcached内部是如何处理的？抱着这份好奇心来分析下Memcached的内存模型。
 
+<!-- more -->
+
 ## 1. 整体结构
 在开始之前，先说明一些概念：
 1. item：存储key/value的数据结构，同时维护了hashtable、LRU链表的指针的信息，是数据的载体；

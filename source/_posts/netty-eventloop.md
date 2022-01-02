@@ -15,6 +15,8 @@ EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，
 2. 处理分发 I/O 事件；
 3. 执行任务，包括定时任务。
 
+<!-- more -->
+
 整体的处理流程如下：
 ```java
 protected void run() {

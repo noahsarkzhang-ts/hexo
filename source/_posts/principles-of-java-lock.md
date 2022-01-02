@@ -14,6 +14,8 @@ categories:
 
 在项目开发中，用ReentrantLock相对较多，但对其的理解程序仅限于Java语言层面，对于JVM及操作系统的底层实现并没有了解，没有一个全局的概念，相关知识点存在断层，如ReentrantLock在JVM和操作系统中到底对应什么实体？等待队列存储在什么地方？线程的等待及唤醒对应什么样的操作？JVM及操作系统在ReentrantLock中提供了什么样的功能？正好在学习操作系统的知识，把这些知识重新梳理下，打通认知上的盲点。
 
+<!-- more -->
+
 ## 1. 整体结构
 ![reentrantlock](/images/reentrantlock.jpg "reentrantlock")
 1. 在Java层，维护了锁的state状态及等待队列（包括条件队列），对JVM的依赖只是线程的阻塞和唤醒。给state赋予不同的含义及控制获取锁的方式，Java在语言层面实现丰富的锁结构。

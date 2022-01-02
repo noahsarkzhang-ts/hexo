@@ -13,6 +13,8 @@ categories:
 ## 1. 概述
 Netty 中所有的的 I/O 操作都是异步的。I/O 操作是比较耗时的，为了不阻塞调用线程，Netty 提供了 ChannelFuture 接口，使用 addListener()方法注册一个 ChannelFutureListener 监听器，可以在 I/O 操作结束之后进行通知返回结果。在下面的代码中，bind 操作返回一个 ChannelFuture 对象，可以继续执行后续操作，也可以调用 sync() 方法同步等待执行结果，给程序开发带来了更多的开发模式，结合不同的业务场景，可以方便选择异步还是同步模式。
 
+<!-- more -->
+
 ```java
 // Configure the server.
 EventLoopGroup bossGroup = new NioEventLoopGroup(1);

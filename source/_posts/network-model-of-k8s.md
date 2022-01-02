@@ -11,5 +11,8 @@ categories:
 ---
 
 这篇文章是学习刘超老师在“极客时间”的课程《趣谈网络协议》之后，做的一个总结。
+
+<!-- more -->
+
 ![container-network](/images/container/container-network.jpeg "container-network")
 

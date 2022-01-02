@@ -14,6 +14,8 @@ categories:
 
 这篇文章是 RPC 系列的第一篇，打算写一个系列的文章，简单介绍下 Duboo2, Dubbo3, gRPC 及 RScoket 的使用方法及差异。在 Alligator 项目中借鉴了其中的一些思想，基于 TCP, Websocket 及 MQ，实现了一个简单的 RPC。RPC 涉及到内容比较多，这里选取了两个方面做为切入点：1）通信模式，包括 request-response, request-stream, stream-response, stream-stream, send-oneway; 2）协议，主要是协议字段，通过这些字段可以大概猜测出其实现方式。
 
+<!-- more -->
+
 ## 一句话 RPC
 Wikipedia 对 RPC 的解释：
 > In distributed computing, a remote procedure call (RPC) is when a computer program causes a procedure (subroutine) to execute in a different address space (commonly on another computer on a shared network), which is coded as if it were a normal (local) procedure call, without the programmer explicitly coding the details for the remote interaction. 

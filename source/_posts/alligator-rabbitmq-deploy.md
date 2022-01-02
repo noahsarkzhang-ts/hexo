@@ -15,6 +15,8 @@ categories:
 RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，它多了一个 exchange 交换器的概念，在 Alligator 中支持使用 RabbitMQ, 其整体结构如下图所示：
 ![rabbitmq-overview](/images/alligator/rabbitmq-overview.png "rabbitmq-overview")
 
+<!-- more -->
+
 现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 RabbitMQ 缓存请求，其流程为：
 1. 用户发送一个生成 PDF 的请求给 web app;
 2. Web app (Producer) 发送一个消息给 RabbitMQ;

@@ -10,8 +10,12 @@ categories:
 - 并发编程
 ---
 之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized进行了种种优化，为了减少获得锁和释放锁所带来的性能消耗，提高性能，引入了“轻量级锁”和“偏向锁”。
+
+<!-- more -->
+
 引入“轻量级锁”和“偏向锁”之后，synchronized锁有四种状态，即之前的“无锁”和“重量级锁”，再加上现在这两种，这四种状态有不同的使用场景，如下图所示：
 ![Synchronized-lock-classify](/images/Synchronized-lock-classify.jpeg "Synchronized-lock-classify")
+
 
 ## 1.概述
 synchronized锁一共有4种状态，级别从低到高依次是：无锁、偏向锁、轻量级锁和重量级锁。锁状态只能升级不能降级，转换升级的整体流程如下所示：

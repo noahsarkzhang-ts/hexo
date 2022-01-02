@@ -9,6 +9,8 @@ categories:
 ## 1. 概述
 > Java 8中的Stream是对集合（Collection）对象功能的增强，它专注于对集合对象进行各种非常便利、高效的聚合操作（Aggregate operation），或者大批量数据操作(Bulk data operation)。Stream API借助于同样新出现的Lambda表达式，极大的提高编程效率和程序可读性。同时它提供串行和并行两种模式进行汇聚操作，并发模式能够充分利用多核处理器的优势，使用fork/join并行方式来拆分任务和加速处理过程<sup>1</sup>。
 
+<!-- more -->
+
 这篇文章重点分析Stream背后的数据结构及执行流程，以下面代码为例：
 ```java
 List<Integer> list = Arrays.asList(1, 5, 2, 4, 8, 6, 7, 8, 9, 10);

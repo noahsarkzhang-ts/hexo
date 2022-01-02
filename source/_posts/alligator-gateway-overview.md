@@ -16,6 +16,8 @@ categories:
 在项目中经常遇到双向通信的场景，如指令的实时下发、状态的上报等，这时候使用 HTTP 协议就有点捉襟见肘。正常情况下一般会使用 TCP/Websocket 协议来实现，不过不同于 HTTP 协议简单及有大量框架的支持，使用 TCP/Websocket 需要考虑心跳、协议的定义、数据的序列化（反序列化）及 RPC 调用的实现。相对来说，入门相对比较复杂。 如果能有一个项目能够对上述功能进行封装，隐藏不同协议之间的差异，对上层应用提供一套统一的接口，上层业务只关心业务，那么就会减少开发人员的学习成本，快速接入项目。
 Alligator 项目就是为了解决上述的场景而开发的，它提供了一个框架，可以让开发人员快速进行 TCP/Websocket 及 HTTP 的开发，而无需关心下层使用的协议。在此基础上，Alligator 还提供了一个进行长连接网关开发的脚手架，它是业务无关的，可以快速接入不同的业务场景。
 
+<!-- more -->
+
 ## 2. 架构
 ![alligator-architecture](/images/alligator/alligator-architecture.jpg "alligator-architecture")
 

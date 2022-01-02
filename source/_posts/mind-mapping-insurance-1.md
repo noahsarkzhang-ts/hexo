@@ -13,6 +13,8 @@ categories:
 
 之前给小孩和自己买保险走了一些弯路，特意研究了保险的品种及保障的作用，用思维导图做了一个总结，权当是笔记吧。
 
+<!-- more -->
+
 ![insurance](/images/insurance.jpeg "insurance")
 
 

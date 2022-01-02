@@ -13,6 +13,8 @@ categories:
 Dubbo 官网对 Dubbo 的描述：
 > Apache Dubbo 是一款微服务开发框架，它提供了 RPC通信 与 微服务治理 两大关键能力。这意味着，使用 Dubbo 开发的微服务，将具备相互之间的远程发现与通信能力， 同时利用 Dubbo 提供的丰富服务治理能力，可以实现诸如服务发现、负载均衡、流量调度等服务治理诉求。同时 Dubbo 是高度可扩展的，用户几乎可以在任意功能点去定制自己的实现，以改变框架的默认行为来满足自己的业务需求。
 
+<!-- more -->
+
 Dubbo 目前有两个大的版本：2.x 和 3.0，2.x 版本也是我们在项目中使用的版本，这是一个同步的 Request-Response 模型的 RPC 框架，而 3.0 版本通过引入 triple 协议，支持了更多的通信模型：
 - 消费端异步请求(Client Side Asynchronous Request-Response)
 - 提供端异步执行（Server Side Asynchronous Request-Response）

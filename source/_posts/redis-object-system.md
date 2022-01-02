@@ -8,7 +8,10 @@ tags:
 categories: 
 - redis
 ---
+
 Redis是一个key-value类型的数据库，key可以是整数或者字符串，value可以支持丰富的数据结构，如字符串、列表、哈希、集合及有序集合。在Redis中，对这些数据结构统一进行了封装，都是以redis对象(redisObject)来呈现，这篇文章主要是对redisObect内部原理及实现做一些梳理，内容主要基于《Redis设计与实现》。
+
+<!-- more -->
 
 ## 1. 对象定义
 在Redis中对象的定义如下：

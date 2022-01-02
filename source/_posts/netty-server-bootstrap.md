@@ -10,6 +10,8 @@ categories:
 ## 1. 概述
 因 Netty 中大量使用异步的调用方式，启动流程中的代码在不同的线程中执行，给分析其启动的顺序带来了一定的麻烦。这篇文章主要是对 ServerBootstrap 服务器启动流程做一个整体性的讲述，分析了每一个步骤所承担的工作，以及前后步骤的触发关系，即前一个步骤怎么调用后一个步骤，仍然以服务器启动的代码为例，分析其流程。
 
+<!-- more -->
+
 ```java
 EventLoopGroup bossGroup = new NioEventLoopGroup(1);
 EventLoopGroup workerGroup = new NioEventLoopGroup();

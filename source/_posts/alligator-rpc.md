@@ -12,8 +12,10 @@ categories:
 
 ## 概述
 在一个长连接网关系统中，客户端与网关之间使用 TCP/Websocket 协议通信，网关与业务服务之间为了解耦，一般使用 MQ 进行通信。
+
 ![RPC-end2end](/images/alligator/RPC-end2end.jpg "RPC-end2end")
 
+<!-- more -->
 
 虽然底层协议不同，但上层的 RPC 协议却是一致的，在 Alligator 系统中，提供了一层抽象的 RPC 协议，可以实现相同的 RPC 语义。如下图所示：
 ![RPC-abstract](/images/alligator/RPC-abstract.jpg "RPC-abstract")

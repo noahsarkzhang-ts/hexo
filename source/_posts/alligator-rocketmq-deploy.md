@@ -16,6 +16,8 @@ RocketMQ 是阿里推出的一款消息系统，用来取代 Kafka 及 RabbitMQ.
 
 ![rocketmq-conceptual-model](/images/alligator/rocketmq-conceptual-model.jpg "rocketmq-conceptual-model")
 
+<!-- more -->
+
 在上图中有几个关键的概念，Producer 是消息的发布者，Consumer 是消息的接收者，负责消费消息，ConsumerGroup 是同一类 Consumer 的集合，Topic 是消息的集合体，而 messageQueue 则是对 Topic 进行分区，来提高消息处理的并行度，从而提高系统的吞吐量。topic 中的 MessageQueue 由 ConsumerGroup 下的 Consumer 负责消费，根据不同的消费模式，保证消息都能被 consumer 进行消费。
 
 ### 1.2 实现架构

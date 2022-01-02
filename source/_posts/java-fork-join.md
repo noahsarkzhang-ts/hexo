@@ -17,6 +17,8 @@ ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将�
 - ForkJoinWorkerThread：工作线程，是任务的执行单元。
 - ForkJoinTask：封装业务的执行逻辑，包括任务fork及join流程。
 
+<!-- more -->
+
 ## 2. 核心思想
 ForkJoinPool的两大核心就是分而治之(Divide and conquer)和工作窃取(Work Stealing)算法，下面先对两种算法作一个介绍，后面将会具体细节做说明，这部分内容来自 [holmofy][3]，作者进行了很好的总结。
 

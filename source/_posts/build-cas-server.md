@@ -25,6 +25,8 @@ Template：thymeleaf
 - 加入验证码；
 - 自定义登录错误信息；
 
+<!-- more -->
+
 ## 1、下载CAS overlay template 
 使用5.3的分支，命令如下：
 ```bash

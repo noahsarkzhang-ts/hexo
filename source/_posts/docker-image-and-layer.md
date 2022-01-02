@@ -12,6 +12,8 @@ categories:
 
 一直对Docker中的镜像（image），分层（layer）及文件（file）三者之间的关系一直很好奇，这篇文章讲述就是这三者之间的关系。
 
+<!-- more -->
+
 **环境说明：**
 虚拟机：VirtualBox 5.1.38
 操作系统：Ubuntu 16.04.5 LTS

@@ -10,6 +10,8 @@ categories:
 
 这篇文章内容主要包括：1）gRPC 基本介绍；2）Java gRPC 实例；3）HTTP2 协议介绍；4）gRPC over HTTP2，流协议的介绍；
 
+<!-- more -->
+
 ## 概述
 Wikipiedia 对 gRPC 的描述：
 > gRPC (gRPC Remote Procedure Calls[1]) 是 Google 发起的一个开源远程过程调用 (Remote procedure call) 系统。该系统基于 HTTP/2 协议传输，使用 Protocol Buffers 作为接口描述语言。

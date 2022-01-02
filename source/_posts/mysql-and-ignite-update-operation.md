@@ -11,7 +11,11 @@ categories:
 - 数据库
 ---
 
-前段时间，需要对内存数据库ignite进行造型，将mysql与ignite进行了性能测试，这篇文章主要是讲在update操作上两者的差异。我们首先假定数据库表如下：
+前段时间，需要对内存数据库ignite进行造型，将mysql与ignite进行了性能测试，这篇文章主要是讲在update操作上两者的差异。
+
+<!-- more -->
+
+我们首先假定数据库表如下：
 ```sql
 CREATE TABLE t_token_info (
 	id int(11) NOT NULL AUTO_INCREMENT,

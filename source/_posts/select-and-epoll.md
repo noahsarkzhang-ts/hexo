@@ -10,6 +10,8 @@ categories:
 
 这篇文章主要讲述 select 和 epoll 的实现原理，包括底层的数据结构、与设备的回调处理机制及两种实现之间的差异。
 
+<!-- more -->
+
 ## 1. 知识储备
 在介绍 select 和 epoll 的实现原理前，先介绍两个知识点，分别是 1）文件的 poll 函数；2）linux 的wakeup callback机制。select 和 epoll 很大程度上就是基于这两点构建的。
 

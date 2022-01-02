@@ -8,11 +8,15 @@ categories:
 - 部署
 ---
 
+这篇文章主要介绍 redis 6.2 单机 Docker 的部署安装方式。
+
+<!-- more -->
+
 ## 1. 拉取镜像
 
 ```bash
 # 搜索 Mysql 镜像
-$ docker search mysql
+$ docker search redis
 
 # 下载 Redis 镜像
 $ docker pull redis:6.2
@@ -21,6 +25,8 @@ $ docker pull redis:6.2
 $ docker images
 
 ```
+
+<!-- more -->
 
 ## 2. 创建挂载目录
 

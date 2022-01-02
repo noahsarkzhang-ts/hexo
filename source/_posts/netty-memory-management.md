@@ -20,6 +20,8 @@ categories:
 2. 在内核空间，Buddy 最小分配单位是 4k ,即一个 page。为了避免内存空间的浪费（小于 4K 的空间也会分配一个 page），slab 提供了小内存空间的分配机制；
 3. 在用户空间，一般是通过 Buddy 分配一个大内存，在这个大内存里面，使用特定的数据来管理内存的分配，满足不同场景下内存的使用，典型的分配算法有：ptmalloc,tcmalloc 及 jemalloc。
 
+<!-- more -->
+
 > ptmalloc 是基于 glibc 实现的内存分配器，它是一个标准实现，所以兼容性较好。pt 表示 per thread 的意思。 ptmalloc 在多线程的性能优化上下了很多功夫。不过由于过于考虑性能问题，多线程之间内存无法实现共享，每个线程都独立使用各自的内存，所以在内存开销上是有很大浪费的。
 
 > tcmalloc 出身于 Google，全称是 thread-caching malloc，所以 tcmalloc 最大的特点是带有线程缓存，tcmalloc 非常出名，目前在 Chrome、Safari 等知名产品中都有所应有。tcmalloc 为每个线程分配了一个局部缓存，对于小对象的分配，可以直接由线程局部缓存来完成，对于大对象的分配场景，tcmalloc 尝试采用自旋锁来减少多线程的锁竞争问题。
