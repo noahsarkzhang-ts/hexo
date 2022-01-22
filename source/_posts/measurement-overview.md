@@ -12,3 +12,11 @@ categories:
 <!-- more -->
 
 **相关文章：**
+[1. 量化：网络延迟][1]
+[2. 量化：监控系统 4 大黄金指标（摘录）][2]
+[3. 量化：监控系统的量化指标（摘录）][3]
+
+
+[1]:https://zhangxt.top/2022/01/09/transmission-measurement/
+[2]:https://zhangxt.top/2022/01/22/four-golden-signals-of-monitor/
+[3]:https://zhangxt.top/2022/01/22/measurement-of-monitoring-system/
