@@ -63,8 +63,8 @@ path.logs: /usr/share/elasticsearch/logs
 network.host: 0.0.0.0
 # 端口
 http.port: 9200
-# 设置在集群中的所有节点名称，目前是单机，放入一个节点即可
-cluster.initial_master_nodes: ["node-1"]
+# 设置在集群为单结点模式
+discovery.type: single-node
 #indices.fielddata.cache.size: 50%
 ```
 
@@ -128,3 +128,66 @@ http://ip:9200/
 # kibana:
 http://ip:5601/
 ```
+
+## 设置安全账号
+使用基本和试用许可证时，默认情况下会禁用 Elasticsearch 安全功能。开启安全功能之后，在单结点模式下可以不用开启 SSL. 在集群模式同时需要开启结点间的 SSL, 否则不能启动。最终配置的结果是通过 url 及 kibana 访问集群需要输入用户名及密码。
+
+### 开启 Elastic 安全功能
+
+操作之前先停止 Kibana 及 Elasticsearch 服务。
+
+**1. 开启 xpack.security.enabled**
+在  ES_PATH_CONF/elasticsearch.yml 文件中加入如下配置：
+
+```yml
+xpack.security.enabled: true
+```
+
+**2. 启用 single-node 发现模式**
+在 ES_PATH_CONF/elasticsearch.yml 文件中加入如下配置：
+
+```yml
+discovery.type: single-node
+```
+
+**3. 重启 Kibana 及 ElElasticsearch**
+完成以上两项配置之后重启 Kibana 及 Elasticsearch.
+
+### 为内置用户编辑创建密码
+使用 /bin/elasticsearch-setup-passwords 设置内置用户的密码，这些用户用于特定的管理目的：apm_system，beats_system，elastic，kibana，logstash_system 和 remote_monitoring_user.
+
+```bash
+# 进入容器
+$ docker exec -it es01-test bash
+
+# 进入到 Elasticsearch 目录
+$ cd /usr/share/elasticsearch
+
+# 
+$ ./bin/elasticsearch-setup-passwords interactive
+Initiating the setup of passwords for reserved users elastic,apm_system,kibana,logstash_system,beats_system,remote_monitoring_user.
+You will be prompted to enter passwords as the process progresses.
+Please confirm that you would like to continue [y/N]
+
+```
+按照提示可以为每一个内置用户生成一个密码。完成之后使用 `http://ip:9200/` 访问集群，需要输入 elastic 用户的密码。
+
+### 为 Kibana 添加内置用户
+启用 Elasticsearch 安全功能后，用户必须使用有效的用户 ID 和密码登录 Kibana。
+Kibana 还执行一些需要使用内置 kibana 用户的任务。
+如果对安全没有强烈要求的话，可以 kibana.yml 文件中配置 kibana 用户名及密码。
+
+```yml
+elasticsearch.username: "kibana"
+elasticsearch.password: "your_password"
+```
+
+另外也可以通过 创建 Kibana 密钥库来保存密码，或在启动参数中加入用户名/密码。
+
+**参考：**
+
+----
+[1]:https://blog.csdn.net/UbuntuTouch/article/details/100548174
+
+[1. Elasticsearch：设置 Elastic 账户安全][1]
+
