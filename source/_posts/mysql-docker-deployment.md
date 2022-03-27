@@ -78,7 +78,7 @@ $ docker exec -it mysql bash
 $ mysql -uroot -p123456
 
 # 设置 root 用户允许远程访问
-> GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+> GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' ;
 > FLUSH PRIVILEGES;
 
 # 宿主机上安装 Mysql 客户端
@@ -98,8 +98,8 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 > create user dev  identified by '123456';
 
 # 授权
-# grant privilegesCode on dbName.tableName to username@host identified by "password";
-> grant all privileges on *.* to dev@'%' identified by '123456';
+# grant privilegesCode on dbName.tableName to username@host;
+> grant all privileges on *.* to dev@'%';
 > flush privileges;
 
 # 查看用户信息
@@ -108,7 +108,7 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 ```
 
 **授权命令说明：**
-命令格式：grant privilegesCode on dbName.tableName to username@host identified by "password";
+命令格式：grant privilegesCode on dbName.tableName to username@host;
 
 <font color='red'>privilegesCode</font> 表示授予的权限类型，常用的有以下几种类型：
 - all privileges：所有权限；
@@ -128,8 +128,6 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 - localhost：只允许该用户在本地登录，不能远程登录。
 - %：允许在除本机之外的任何一台机器远程登录。
 - 192.168.7.115：具体的 IP 表示只允许该用户从特定 IP 登录。
-
-<font color='red'>password:</font> 指定该用户登录时的面。
 
 <font color='red'>flush privileges</font> 表示刷新权限变更。
 
