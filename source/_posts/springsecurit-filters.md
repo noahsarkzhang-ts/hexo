@@ -4,6 +4,8 @@ date: 2022-03-26 19:08:32
 tags:
 - Spring Security
 - Filter
+- UsernamePasswordAuthenticationFilter
+- FilterSecurityInterceptor
 categories:
 - Springboot
 ---
@@ -423,6 +425,9 @@ public abstract class WebSecurityConfigurerAdapter implements
 }
 
 ```
+
+**说明：**
+FilterSecurityInterceptor 过滤器由 `authorizeRequests()` 方法引入。
 
 ### 小结
 
