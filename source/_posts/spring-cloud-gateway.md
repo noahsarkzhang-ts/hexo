@@ -549,6 +549,8 @@ java -Dserver.port=8080 -Dcsp.sentinel.dashboard.server=localhost:8080 -Dproject
 </dependency>
 ```
 
+[工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-koala](https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-koala)
+
 </br>
 
 **参考：**
