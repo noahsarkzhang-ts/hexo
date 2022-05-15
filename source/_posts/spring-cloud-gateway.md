@@ -561,6 +561,4 @@ java -Dserver.port=8080 -Dcsp.sentinel.dashboard.server=localhost:8080 -Dproject
 
 [1. Spring Cloud Gateway 官网][1]
 
-[2. SpringCloud gateway （史上最全）][2]
-
 [2. 网关限流][2]
