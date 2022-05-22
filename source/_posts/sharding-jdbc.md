@@ -394,6 +394,26 @@ public interface OrderMapper {
 
     @Delete("DELETE FROM t_order WHERE order_id =#{orderId}")
     void delete(Long orderId);
+
+    @Select(
+            "<script>"
+            + "select "
+            + "o.order_id as orderId, "
+            + "o.order_no as orderNo, "
+            + "o.user_id as userId, "
+            + "o.name as name,"
+            + "o.price as price,"
+            + "oi.item_id as itemId "
+            + "from t_order o "
+            + "left join t_order_item oi on o.order_id = oi.order_id "
+            + "where o.order_id in "
+            + "<foreach collection='orderIds' item='orderId' index='index' "
+            + "  open='(' close=')' separator=','> "
+            + "  #{orderId} "
+            + "</foreach>"
+            + "</script>"
+            )
+    List<OrderDetail> getOrderDetails(@Param("orderIds") List<Long> orderIds);    
 }
 ```
 
@@ -489,9 +509,9 @@ mybatis.type-aliases-package=org.noahsark.shardingjdbc.model
 logging.file.name=logs/jdbc.log
 ```
 
-[工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc](https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc)
-
 ### 测试代码
+
+**插入 Order 表**
 
 ```java
 @Test
@@ -531,6 +551,111 @@ public void insertTest() {
     }
 }
 ```
+
+根据 `userId` 进行的分库，`orderId` 进行分表，`order` 表数据均衡分布到两个主库中。
+
+**关联查询**
+
+根据 `orderId` 列表 对 `order`, `order_item` 进行关联查询。
+
+```java
+@Test
+public void getOrderDetailsTest() {
+
+    List<Long> list = Arrays.asList(732635574220881920L, 732635574220881920L);
+
+    List<OrderDetail> orderDetails = orderMapper.getOrderDetails(list);
+
+    for (OrderDetail orderDetail : orderDetails) {
+        System.out.println("orderDetail = " + orderDetail);
+    }
+}
+```
+
+关联查询因为没有分库的信息，所以会查询所有的分库（如果设置了读写分离，则从主库的从查询），再将所有分库的结果进行聚合。在每一个分库中查询，又分为两种情况：1) 绑定表；2) 非绑定表；
+
+**绑定表**
+
+```text
+2022-05-21 15:38:24.602 [main] INFO  ShardingSphere-SQL - Logic SQL: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order o left join t_order_item oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) 
+
+2022-05-21 15:38:24.603 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+2022-05-21 15:38:24.603 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+
+```
+
+在两个分库两个分表的情况下，这个关联查询转化为两个查询，一个分库一个查询。由于 `orderId` 是分表键，可以定位到数据位于 `t_order_0` 和 `t_order_item_0` 表中，直接查询即可。
+
+**非绑定表**
+
+```text
+2022-05-21 15:39:34.135 [main] INFO  ShardingSphere-SQL - Logic SQL: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order o left join t_order_item oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) 
+
+2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_1 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_1 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+2022-05-21 15:39:34.136 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: select o.order_id as orderId, o.order_no as orderNo, o.user_id as userId, o.name as name,o.price as price,oi.item_id as itemId from t_order_0 o left join t_order_item_0 oi on o.order_id = oi.order_id where o.order_id in  (     ?  ,    ?  ) ::: [732635574220881920, 732635574220881920] 
+```
+
+在两个分库两个分表的情况下，这个关联查询转化为四个查询。在一个分库中，根据分表键 `orderId`, 可以定位到这两个 `orderId` 位于 `t_order_0 ` 中，由于 `t_order_0` 和 `t_order_item_0` 表没有绑定关系，所以 `t_order_0` 表需要与所有 `t_order_item` 表进行关联查询，最终需要执行四个查询。
+
+**插入广播表**
+
+```java
+@Test
+public void insertConfigTest() {
+
+    Config config = new Config();
+    config.setCode("OS");
+    config.setName("os");
+    config.setCreateDate(new Date());
+
+    configMapper.insert(config);
+
+    System.out.println("config:" + config);
+
+}
+
+```
+
+插入广播表会在所有分库中执行插入操作。
+
+```text
+2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Logic SQL: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) 
+
+2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Actual SQL: master0 ::: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) ::: [VISION, vision, 2022-05-21 15:40:27.155] 
+2022-05-21 15:40:27.425 [main] INFO  ShardingSphere-SQL - Actual SQL: master1 ::: INSERT INTO t_config(code,name,create_date) VALUES(?, ?, ?) ::: [VISION, vision, 2022-05-21 15:40:27.155] 
+config:Config{id=null, code='VISION', name='vision', createDate=Sat May 21 15:40:27 CST 2022}
+```
+
+如上所述，向 `t_config` 中插入一条数据，会中所有分库的主库中执行操作。
+
+**查询所有数据**
+
+```java
+@Test
+public void getAllTest() {
+
+    List<Order> list = orderMapper.getAll();
+
+    for (Order order : list) {
+        System.out.println("order = " + order);
+    }
+}
+```
+
+查询语句中如果没有分库分表健，会默认查询所有表。
+
+```text
+2022-05-21 15:41:16.781 [main] INFO  ShardingSphere-SQL - Logic SQL: SELECT * FROM t_order 
+
+2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: SELECT * FROM t_order_0 
+2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave0 ::: SELECT * FROM t_order_1 
+2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: SELECT * FROM t_order_0 
+2022-05-21 15:41:16.782 [main] INFO  ShardingSphere-SQL - Actual SQL: slave1 ::: SELECT * FROM t_order_1
+```
+
+[工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc](https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springcloud-sharding-jdbc)
 
 </br>
 
