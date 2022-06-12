@@ -1,5 +1,5 @@
 ---
-title: ELK 存储模型
+title: ELK
 date: 2022-06-05 12:44:28
 tags:
 - ELK
@@ -326,7 +326,133 @@ Log 日志的 Index Mapping 定义如下所示：
 
 ### Field 分析
 
-待分析...
+**1. Dynamic templates**
+在 Elasticsearch 中，可以通过设置 `dynamic` 参数为 `true` 或 `runtime` 来动态识别字段，这些识别的规则是内置的。另外，也可以通过 `Dynamic templates` 来自定义识别规则，格式如下所示：
+
+```yaml
+"dynamic_templates": [
+    {
+      "my_template_name": { // 1
+        ... match conditions ... // 2
+        "mapping": { ... }  // 3
+      }
+    },
+    ...
+  ]
+```
+
+- 1 为模板的名称；
+- 2 为匹配的表达式，包括：match_mapping_type, match, match_pattern, unmatch, path_match, path_unmatch;
+- 3 为转换之后的映射。
+
+**匹配表达式的含义：**
+- match_mapping_type: Elasticsearch 自动识别出的类型；
+- match and unmatch：用于匹配字段名称；
+- path_match and path_unmatch: 用于匹配字段的路径及字段。
+
+**实例 1：**
+```json
+{
+  "message_field": {
+    "path_match": "message",
+    "match_mapping_type": "string",
+    "mapping": {
+      "norms": false,
+      "type": "text"
+    }
+  }
+}
+```
+这个 `Dynamic templates` 的含义为将字段名为 `message` 且类型为 `string` 的字段映射为 `text` 类型,且 `norms` 为 `fasle`.
+
+**实例 2：**
+```json
+{
+  "string_fields": {
+    "match": "*",
+    "match_mapping_type": "string",
+    "mapping": {
+      "fields": {
+        "keyword": {
+          "ignore_above": 256,
+          "type": "keyword"
+        }
+      },
+      "norms": false,
+      "type": "text"
+    }
+  }
+}
+```
+
+这个 `Dynamic templates` 的含义为任意类型为 `string` 的字段映射为多字段类型：一个字段为 `text` 类型,且 `norms` 为 `fasle`, 另外一个 `keyword` 类型，且只索引前 256 个字符。
+
+> Norms ：Norms are index-time scoring factors. If you do not care about scoring, which would be the case for instance if you never sort documents by score, you could disable the storage of these scoring factors in the index and save some space. 
+
+如果一个字段匹配多个 `Dynamic templates`, 如何选择呢？ Elasticsearch 按照顺序选择匹配的第一个。
+
+> Templates are processed in order — the first matching template wins. 
+
+**2. Multi-field**
+可以对一个 `field` 定义多个类型，或设置多种分词格式，如下所示：
+```json
+"appName": {
+  "fields": {
+    "keyword": {
+      "type": "keyword",
+      "ignore_above": 256
+    }
+  },
+  "type": "text",
+  "norms": false
+}
+```
+
+`appName` 设置为 `text` 和 `keyword` 类型，`text` 可以对字段进行分词，而 `keyword` 不分词，只索引。
+
+**3. 时间戳**
+
+在 `log` index 里，设置了类型为 `date` 的 `@timestamp` 字段用来表示日志发生的时间。
+
+**4. Object 类型**
+
+Elasticsearch 是一个文档型数据库，它存储的数据为 json 类型，字段类型可以是基本类型，如 string, int, long, double 等等，也可以是 Ojbect 类型，如下所示：
+
+```json
+"properties": {
+
+  "geoip": {
+    "dynamic": "true",
+    "properties": {
+      "ip": {
+        "type": "ip"
+      },
+      "latitude": {
+        "type": "half_float"
+      },
+      "location": {
+        "type": "geo_point"
+      },
+      "longitude": {
+        "type": "half_float"
+      }
+    }
+  },
+  // ...
+}
+```
+`geoip` 是一个 `Object` 类型，包括：ip, latitude, location, longitude 等等。
 
 
 [工程代码：https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springboot-monitor](https://github.com/noahsarkzhang-ts/springboot-lab/tree/main/springboot-monitor)
+
+</br>
+
+**参考：**
+
+----
+[1]:https://www.elastic.co/guide/en/elasticsearch/reference/current/dynamic-templates.html
+[2]:https://www.elastic.co/guide/en/elasticsearch/reference/current/multi-fields.html
+
+[1. Elasticsearch: Dynamic templates ][1]
+[2. Elasticsearch: fields][2]
