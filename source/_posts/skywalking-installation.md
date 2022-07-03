@@ -126,11 +126,76 @@ $ java -jar -javaagent:C:/Java/skywalking-es7-8.6.0/agent/skywalking-agent.jar -
 
 ![skywalking-idea](/images/es/skywalking-idea.jpg "skywalking-idea")
 
+## 日志采集
+
+SkyWalking 除了可以采集 trace 及 metric 数据之外，也可以在 log 日志中加入 `traceId`, 并将日志上传存储到 Elasticsearch7 中，结合 trace 一起定位问题。
+
+**1. 引入依赖**
+
+项目中使用的是 logback 框架，引入 skywalking 依赖即可，如果是其它日志框架，可以在官网中找到相关依赖。
+
+```xml
+<dependency>
+    <groupId>org.apache.skywalking</groupId>
+    <artifactId>apm-toolkit-logback-1.x</artifactId>
+    <version>8.6.0</version>
+</dependency>
+```
+
+**2. 日志配置**
+ 
+ 在 `logback.xml` 文件中加入 skywalking 的 `appender`, 其中 `tid` 表示 `tracId`, 最后引用该 `appender` 输出日志。
+
+ ```xml
+<!-- skywalking 通过grpc采集日志 -->
+<appender name="GPRC_SKYWALKING"
+          class="org.apache.skywalking.apm.toolkit.log.logback.v1.x.log.GRPCLogClientAppender">
+    <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+        <layout class="org.apache.skywalking.apm.toolkit.log.logback.v1.x.mdc.TraceIdMDCPatternLogbackLayout">
+            <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{tid}] [%thread] %-5level %logger{36} -%msg%n</Pattern>
+        </layout>
+    </encoder>
+</appender>
+
+<!-- 日志输出级别 -->
+<root level="INFO">
+    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="FILE"/>
+    <appender-ref ref="GPRC_SKYWALKING"/>
+</root>
+ ```
+
+ 最后输出的日志格式如下所示：
+ ```txt
+17:20:53.698 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - [TID:N/A] - Tomcat initialized with port(s): 8070 (http)
+17:20:53.706 [main] INFO  o.a.coyote.http11.Http11NioProtocol - [TID:N/A] - Initializing ProtocolHandler ["http-nio-8070"]
+10:07:21.256 [http-nio-8070-exec-9] INFO  o.n.n.NacosProviderApplication$EchoController - [TID:4e52987712fb42308887530e7c8361bb.84.16559500412520005] - Receive a request:skywalking
+10:08:12.817 [http-nio-8070-exec-8] INFO  o.n.n.NacosProviderApplication$EchoController - [TID:4e52987712fb42308887530e7c8361bb.83.16559500928140003] - Receive a request:skywalking
+```
+
+未收到请求时 `traceId` 为 `[TID:N/A]`, 表示为空，收到请求之后便会正常输出。
+
+**3. 配置 agent**
+
+在本地 log 文件中包含了 `traceId` 之后，可以通过 gPRC 将日志传输给 skywalking, 再存储到 Elasticsearch7 中。要完成这个功能，需要在 `skywalking-es7-8.6.0/agent/config/agent.config` 文件中加入如下配置：
+```properties
+plugin.toolkit.log.grpc.reporter.server_host=${SW_GRPC_LOG_SERVER_HOST:192.168.1.100}
+plugin.toolkit.log.grpc.reporter.server_port=${SW_GRPC_LOG_SERVER_PORT:11800}
+plugin.toolkit.log.grpc.reporter.max_message_size=${SW_GRPC_LOG_MAX_MESSAGE_SIZE:10485760}
+plugin.toolkit.log.grpc.reporter.upstream_timeout=${SW_GRPC_LOG_GRPC_UPSTREAM_TIMEOUT:30}
+```
+
+通过参数指定日志上报服务的地址和端口，另外这些参数也可以通过环境变量进行配置。
+
 ## 界面
 
-引入应用之后，现在便可采集调用链数据。
+引入应用之后，现在便可采集 trace 及 log 日志，其效果如下所示：
 
+**1. trace 查询**
 ![skywalking-trace](/images/es/skywalking-trace.jpg "skywalking-trace")
+
+**2. log 查询**
+![skywalking-log](/images/es/skywalking-log.jpg "skywalking-log")
 
 **参考：**
 
