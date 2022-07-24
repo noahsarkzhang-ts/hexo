@@ -166,7 +166,7 @@ categories:
 | TmFjb3NQcm92aWRlckFwcA==.1      |   NacosProviderApp    |   0  | null | | 
 | TmFjb3NDb25zdW1lckFwcA==.1      |   NacosConsumerApp    |   0  | null | | 
 
-### Instace 索引
+### Instance 索引
 **1. Mapping**
 通过命令 `GET my-elasticsearch_instance_traffic-20220701/_mapping` 查看索引结构。
 
