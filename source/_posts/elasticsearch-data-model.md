@@ -11,7 +11,7 @@ categories:
 - Elasticsearch
 ---
 
-这篇文章讲述在 Elasticsearch 中如何选择字段的类型，它是对极客时间《Elasticsearch 核心技术与实战》之《数据建模》章节的笔记。
+这篇文章讲述在 Elasticsearch 中如何选择字段的类型，它是对极客时间《Elasticsearch 核心技术与实战》之《数据建模》章节的读书笔记。
 
 <!-- more -->
 
