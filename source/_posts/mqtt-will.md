@@ -13,7 +13,7 @@ MQTT 提供了遗嘱 Will 功能，可以在终端异常下线时，向特定的
 
 ## 概述
 
-`Will` 功能可以 CONNECT 控制报文中进行设置，如下所示：
+`Will` 功能可以在 `CONNECT` 控制报文中进行设置，如下所示：
 
 ![mqtt-connect-flag](/images/mqtt/mqtt-connect-flag.jpg "mqtt-connect-flag")
 
