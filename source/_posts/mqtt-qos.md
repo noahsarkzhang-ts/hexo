@@ -1,5 +1,5 @@
 ---
-title: Mqtt 序列：QoS
+title: Mqtt 系列：QoS
 date: 2022-12-31 18:50:17
 tags:
 - QoS

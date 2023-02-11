@@ -1,5 +1,5 @@
 ---
-title: Mqtt 序列：集群通信
+title: Mqtt 系列：集群通信
 date: 2023-01-14 22:33:45
 tags:
 - 集群

@@ -1,5 +1,5 @@
 ---
-title: Mqtt 序列：Retain Message
+title: Mqtt 系列：Retain Message
 date: 2023-01-01 18:53:39
 tags:
 - retain message

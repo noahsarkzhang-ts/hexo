@@ -1,5 +1,5 @@
 ---
-title: Mqtt 序列：Subscription
+title: Mqtt 系列：Subscription
 date: 2023-01-14 22:33:32
 tags:
 - subscription

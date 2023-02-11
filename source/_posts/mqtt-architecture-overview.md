@@ -1,5 +1,5 @@
 ---
-title: Mqtt 序列：MQTT 整体架构
+title: Mqtt 系列：MQTT 整体架构
 date: 2022-12-31 11:41:20
 tags:
 - 架构

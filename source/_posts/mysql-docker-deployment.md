@@ -35,7 +35,7 @@ $ docker images
 
 ```bash
 # 运行 Mysql 容器
-$ docker run -d 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+$ docker run -d -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
 
 # 运行 Mysql 容器，映射目录，设置 Mysql 参数
 $ docker run -d -p 3306:3306 --name mysql \
