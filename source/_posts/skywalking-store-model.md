@@ -4,13 +4,6 @@ date: 2022-07-02 10:37:52
 tags:
 - skywalking
 - 存储模型
-- service
-- service instance
-- endpoint
-- metric
-- trace
-- log
-- event
 categories:
 - Elasticsearch
 ---

@@ -7,7 +7,7 @@ tags:
 - 轻量级锁
 - 重量级锁
 categories:
-- 并发编程
+- Java基础
 ---
 之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized进行了种种优化，为了减少获得锁和释放锁所带来的性能消耗，提高性能，引入了“轻量级锁”和“偏向锁”。
 

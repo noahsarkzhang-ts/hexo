@@ -1,10 +1,10 @@
 ---
-title: 性能：Top 命令
+title: Top 命令
 date: 2022-02-12 20:21:08
 tags:
 - top
 categories:
-- Performance
+- 工具
 ---
 
 在日常工作，查看服务器的负载、CPU 及内存使用情况，尤其查看进程使用内存、CPU 的占比，定位哪个进程占用了最多的内存及 CPU 周期，这个时候，就可以使用 Top 命令了。

@@ -6,7 +6,7 @@ tags:
 - 分而治之
 - fork/join
 categories:
-- 并发编程
+- Java基础
 ---
 ## 1. 概述
 ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：

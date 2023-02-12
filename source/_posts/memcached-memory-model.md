@@ -7,7 +7,7 @@ tags:
 - chunk
 - slabclass
 categories: 
-- memcached
+- 缓存
 ---
 Memcached是一个基于内存的缓存系统，存储的是key/value的键值对，与Redis类似。不过相对于Redis，值是无类型的字节数组（类比于Reidis中的String类型）。在Reidis中构建了一个对象系统来存储键值对，Memcached内部是如何处理的？抱着这份好奇心来分析下Memcached的内存模型。
 

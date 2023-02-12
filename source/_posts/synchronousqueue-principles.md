@@ -6,7 +6,7 @@ tags:
 - 同步队列
 - 线程池
 categories:
-- 阻塞队列
+- Java基础
 ---
 
 这篇文章主要讲述SynchronousQueue数据结构及在线程池中的应用。

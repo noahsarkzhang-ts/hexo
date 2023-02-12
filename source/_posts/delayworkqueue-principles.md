@@ -8,7 +8,7 @@ tags:
 - DelayedQueue
 - 周期性任务
 categories:
-- 阻塞队列
+- Java基础
 ---
 
 在Java中，ScheduledThreadPoolExecutor主要作用是执行延时及周期性任务，这篇文章主要分析以下几个问题：1）任务是如何存储的？2）延时及周期性任务什么时候执行及如何执行？3）任务怎么进行取消？带着这些问题我们继续往下看。

@@ -7,7 +7,7 @@ tags:
 - 故障检测
 - Redis Cluster
 categories: 
-- 一致性算法
+- 数据结构与算法
 ---
 
 ## 1. 概述

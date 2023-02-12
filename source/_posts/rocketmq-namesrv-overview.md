@@ -5,7 +5,7 @@ tags:
 - rocketmq
 - namesrv
 categories:
-- rocketmq系列
+- RocketMQ
 ---
 
 NameServer 作为消息中间件 RocketMQ 的核心组件之一， 起着注册中心的作用，这篇文章主要是从整体上分析一下NameServer的实现。
