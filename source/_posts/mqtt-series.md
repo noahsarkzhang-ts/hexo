@@ -59,8 +59,10 @@ categories:
 [7. Mqtt 序列：集群间通信][7]
 [8. Mqtt 序列：持久化][8]
 [9. Mqtt 序列：服务加载][9]
-[10. Mqtt 序列：Metric 指标(未完成)][10]
-[11. Mqtt 序列：部署方式(未完成)][10]
+[10. Mqtt 序列：SSL][10]
+[11. Mqtt 序列：Docker 部署][11]
+[12. Mqtt 序列：Metric 指标(未完成)][12]
+
 
 [1]:https://zhangxt.top/2022/12/31/mqtt-architecture-overview/
 [2]:https://zhangxt.top/2022/12/31/mqtt-qos/
@@ -71,4 +73,6 @@ categories:
 [7]:https://zhangxt.top/2023/01/14/mqtt-cluster/
 [8]:https://zhangxt.top/2023/02/05/mqtt-persistent/
 [9]:https://zhangxt.top/2023/02/11/mqtt-service-loader/
-[10]:https://zhangxt.top/2022/12/18/mqtt-series/
+[10]:https://zhangxt.top/2023/02/18/mqtt-ssl/
+[11]:https://zhangxt.top/2023/02/18/mqtt-docker/
+[12]:https://zhangxt.top/2022/12/18/mqtt-series/
