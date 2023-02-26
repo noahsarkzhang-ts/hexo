@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Actuator
+title: Springboot 系列：Actuator
 date: 2022-05-29 11:00:53
 tags:
 - actuator

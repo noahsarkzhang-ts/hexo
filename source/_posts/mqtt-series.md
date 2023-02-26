@@ -61,7 +61,8 @@ categories:
 [9. Mqtt 序列：服务加载][9]
 [10. Mqtt 序列：SSL][10]
 [11. Mqtt 序列：Docker 部署][11]
-[12. Mqtt 序列：Metric 指标(未完成)][12]
+[12. Mqtt 序列：工程结构][12]
+[13. Mqtt 序列：Metric 指标(未完成)][13]
 
 
 [1]:https://zhangxt.top/2022/12/31/mqtt-architecture-overview/
@@ -75,4 +76,5 @@ categories:
 [9]:https://zhangxt.top/2023/02/11/mqtt-service-loader/
 [10]:https://zhangxt.top/2023/02/18/mqtt-ssl/
 [11]:https://zhangxt.top/2023/02/18/mqtt-docker/
-[12]:https://zhangxt.top/2022/12/18/mqtt-series/
+[12]:https://zhangxt.top/2023/02/26/mqtt-project/
+[13]:https://zhangxt.top/2022/12/18/mqtt-series/

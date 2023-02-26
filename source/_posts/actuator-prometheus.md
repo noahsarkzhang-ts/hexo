@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Actuator + Prometheus
+title: Springboot 系列：Actuator + Prometheus
 date: 2022-05-29 19:00:50
 tags:
 - actuator

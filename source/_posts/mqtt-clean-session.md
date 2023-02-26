@@ -17,7 +17,7 @@ MQTT 可以设置是否持久化 Session 数据，这样可以保证终端断线
 
 ![mqtt-connect-flag](/images/mqtt/mqtt-connect-flag.jpg "mqtt-connect-flag")
 
-`Clean Session` 标志位用来设置客户端和服务端可以保存 Session 状态，以支持跨网络连接的可靠消息传输，这个标志位用于控制 Session 状态的生存时间。
+`Clean Session` 标志位用来设置客户端和服务端之间的 Session 状态，以支持跨网络连接的可靠消息传输，这个标志位用于控制 Session 状态的生存时间。
 
 如果 CleanSession 标志被设置为 0，服务端必须基于当前 Session （使用客户端标识符识别） 的状态恢复与客户端的通信。如果没有与这个客户端标识符关联的 Session， 服务端必须创建一个新的 Session。
 

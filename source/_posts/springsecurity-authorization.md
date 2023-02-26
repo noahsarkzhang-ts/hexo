@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：SpringSecurity 授权
+title: Springboot 系列：SpringSecurity 授权
 date: 2022-04-04 19:56:22
 tags:
 - Spring Security

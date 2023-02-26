@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Nginx
+title: Springboot 系列：Nginx
 date: 2022-05-21 15:45:26
 tags:
 - nginx

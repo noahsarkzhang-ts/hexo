@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Hystrix & Sentinal
+title: Springboot 系列：Hystrix & Sentinal
 date: 2022-05-02 11:15:34
 tags:
 - Hystrix

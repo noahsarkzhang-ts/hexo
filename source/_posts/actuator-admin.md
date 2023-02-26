@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Actuator + Admin
+title: Springboot 系列：Actuator + Admin
 date: 2022-05-29 18:59:28
 tags:
 - actuator

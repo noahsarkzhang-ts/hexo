@@ -1,12 +1,12 @@
 ---
-title: Springboot 序列：使用 Oauth2 实现单点登陆
+title: Springboot 系列：使用 Oauth2 实现单点登陆
 date: 2022-05-08 15:15:08
 tags:
 - oauth2
 - sso
 - cas
 categories:
-- - Springboot
+- Springboot
 ---
 
 这篇文章主要讲述使用 Oauth2 协议来实现前后端分离场景下 SSO 的功能。

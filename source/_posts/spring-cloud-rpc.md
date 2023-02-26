@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Spring Cloud RPC
+title: Springboot 系列：Spring Cloud RPC
 date: 2022-04-16 19:57:05
 tags:
 - Ribbon

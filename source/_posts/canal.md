@@ -1,5 +1,5 @@
 ---
-title: Springboot 序列：Canal
+title: Springboot 系列：Canal
 date: 2022-04-10 15:10:29
 tags:
 - canal
