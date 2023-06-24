@@ -1,5 +1,5 @@
 ---
-title: CPU 负载跑满 100% 问题
+title: CPU 负载跑满问题
 date: 2023-02-18 17:13:58
 tags:
 - cpu负载
@@ -139,3 +139,5 @@ $ jstack 22900 | grep '0x5975' -A20 --color
 
 
 [1. linux线上CPU100%排查][1]
+
+
