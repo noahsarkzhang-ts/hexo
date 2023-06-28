@@ -1,6 +1,7 @@
 ---
 title: Elasticsearch 存储模型
 date: 2022-02-06 12:20:56
+updated: 2022-02-06 12:20:56
 tags:
 - Docvalues
 - 列存

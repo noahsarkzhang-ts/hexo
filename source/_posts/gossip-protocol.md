@@ -1,6 +1,7 @@
 ---
 title: Gossip 协议
 date: 2020-11-29 17:15:14
+updated: 2020-11-29 17:15:14
 tags:
 - Gossip
 - 一致性算法

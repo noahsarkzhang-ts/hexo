@@ -1,6 +1,7 @@
 ---
 title: Netty 系列：ChannelPipeline
 date: 2021-08-28 22:48:35
+updated: 2021-08-28 22:48:35
 tags:
 - ChannelPipeline
 - DefaultChannelPipeline

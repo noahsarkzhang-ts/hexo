@@ -1,6 +1,7 @@
 ---
 title: Springboot 序列：Nacos 服务发现 
 date: 2022-03-06 11:11:50
+updated: 2022-03-06 11:11:50
 tags:
 - Nacos
 - 注册中心

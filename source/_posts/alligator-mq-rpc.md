@@ -1,6 +1,7 @@
 ---
 title: Alligator 系列：MQ RPC
 date: 2021-10-16 10:59:56
+updated: 2021-10-16 10:59:56
 tags:
 - MQ RPC
 - RabbitMQ

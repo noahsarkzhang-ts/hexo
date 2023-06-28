@@ -1,6 +1,7 @@
 ---
 title: Springboot 系列：Canal
 date: 2022-04-10 15:10:29
+updated: 2022-04-10 15:10:29
 tags:
 - canal
 - 增量更新

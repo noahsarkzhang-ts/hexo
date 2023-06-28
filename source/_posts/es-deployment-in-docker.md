@@ -1,6 +1,7 @@
 ---
 title: Docker 下安装 ES, Kibana
 date: 2022-01-29 15:44:46
+updated: 2022-01-29 15:44:46
 tags:
 - es
 - kibana

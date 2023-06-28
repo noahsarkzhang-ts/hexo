@@ -1,6 +1,7 @@
 ---
 title: Alligator 系列：RabbitMQ 基础知识及部署
 date: 2021-09-30 09:12:20
+updated: 2021-09-30 09:12:20
 tags:
 - RabbitMQ
 - consumer ack

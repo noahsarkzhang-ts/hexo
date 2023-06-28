@@ -1,6 +1,7 @@
 ---
 title: Java Stream Pipeline
 date: 2019-12-08 20:13:30
+updated: 2019-12-08 20:13:30
 tags:
 - stream pipeline
 categories:

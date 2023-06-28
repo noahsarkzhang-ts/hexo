@@ -1,6 +1,7 @@
 ---
 title: Metricbeat
 date: 2022-06-05 12:54:37
+updated: 2022-06-05 12:54:37
 tags:
 - metricbeat
 - metric

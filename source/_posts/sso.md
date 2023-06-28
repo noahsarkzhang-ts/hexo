@@ -1,6 +1,7 @@
 ---
 title: Springboot 系列：使用 Oauth2 实现单点登陆
 date: 2022-05-08 15:15:08
+updated: 2022-05-08 15:15:08
 tags:
 - oauth2
 - sso

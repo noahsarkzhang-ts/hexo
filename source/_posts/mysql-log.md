@@ -1,6 +1,7 @@
 ---
 title: Mysql 事务日志
 date: 2021-01-31 17:56:29
+updated: 2021-01-31 17:56:29
 tags:
 - redo
 - undo

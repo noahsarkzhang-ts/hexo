@@ -1,6 +1,7 @@
 ---
 title: RocketMQ系列：NameServer概览
 date: 2020-01-20 18:27:30
+updated: 2020-01-20 18:27:30
 tags:
 - rocketmq
 - namesrv

@@ -1,6 +1,7 @@
 ---
 title: Redis 6.2 Docker 部署（单机）
 date: 2021-10-23 17:36:51
+updated: 2021-10-23 17:36:51
 tags:
 - redis
 - docker

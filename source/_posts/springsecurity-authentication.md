@@ -1,6 +1,7 @@
 ---
 title: Springboot 系列：SpringSecurity 认证
 date: 2022-04-04 12:14:34
+updated: 2022-04-04 12:14:34
 tags:
 - Spring Security
 - authentication

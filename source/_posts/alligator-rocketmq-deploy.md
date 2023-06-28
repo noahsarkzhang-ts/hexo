@@ -1,6 +1,7 @@
 ---
 title: Alligator 系列：RocketMQ 基础知识及部署
 date: 2021-10-02 11:40:18
+updated: 2021-10-02 11:40:18
 tags:
 - RocketMQ
 - CommitLog

@@ -1,6 +1,7 @@
 ---
 title: Springboot 序列：Nacos 配置中心
 date: 2022-03-05 18:32:53
+updated: 2022-03-05 18:32:53
 tags:
 - Nacos
 - 配置中心

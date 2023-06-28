@@ -1,6 +1,7 @@
 ---
 title: Hexo 和 Next 升级
 date: 2023-06-28 14:44:47
+updated: 2023-06-28 14:44:47
 tags:
 - hexo 升级
 - next 升级

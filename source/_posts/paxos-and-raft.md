@@ -1,6 +1,7 @@
 ---
 title: Paxos 和 Raft 算法
 date: 2020-11-08 16:31:26
+updated: 2020-11-08 16:31:26
 tags:
 - paxos
 - raft
