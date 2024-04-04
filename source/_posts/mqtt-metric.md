@@ -8,7 +8,7 @@ categories:
 - MQTT
 ---
 
-这篇文章讲述的 `MQTT Broker` 项目中添加 Metric 监控指标。
+这篇文章讲述向 `MQTT Broker` 项目中添加 Metric 监控指标。
 
 <!-- more -->
 
