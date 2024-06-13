@@ -514,7 +514,7 @@ icegridnode --Ice.Config=node1.cfg
 启动 Registry, Node, 然后启动 `icegridadmin`:
 
 ```bash
-cegridadmin --Ice.Config=config.cfg
+icegridadmin --Ice.Config=config.cfg
 >>> application add "app.xml"
 ```
 

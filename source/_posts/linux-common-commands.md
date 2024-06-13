@@ -9,6 +9,7 @@ tags:
 - grep 命令
 - curl 命令
 - top 命令
+- tcpdump 命令
 categories: 
 - 运维
 ---
@@ -29,7 +30,7 @@ systemctl list-units --type=service
 systemctl list-units --type=service --state=running
 ```
 
-服务文件目录：**/usr/lib/systemd/system**
+服务文件目录： **/usr/lib/systemd/system**
 
 ## 查找文件
 **1. 按照文件名查找文件**
@@ -201,6 +202,20 @@ $ curl -X POST https://www.example.com
 ```
 上面命令对 https://www.example.com 发出 POST 请求。
 HTTP 方法包括：POST,GET,DELETE,PUT
+
+## tcpdump 命令
+tcpdump 命令常用参数如下：
+```bash
+$ tcpdump -i eth0 -w output_file -nn -s0 -v tcp port 80
+
+-i : 选择要捕获的接口，通常是以太网卡或无线网卡，也可以是 vlan 或其他特殊接口。如果该系统上只有一个网络接口，则无需指定。
+-w : 写入到指定文件；
+-nn : 单个 n 表示不解析域名，直接显示 IP；两个 n 表示不解析域名和端口。这样不仅方便查看 IP 和端口号，而且在抓取大量数据时非常高效，因为域名解析会降低抓取速度。
+-s0 : tcpdump 默认只会截取前 96 字节的内容，要想截取所有的报文内容，可以使用 -s number，number 就是你要截取的报文字节数，如果是 0 的话，表示截取报文全部内容。
+-v : 使用 -v，-vv 和 -vvv 来显示更多的详细信息，通常会显示更多与特定协议相关的信息。
+-A : 表示使用 ASCII 字符串打印报文的全部数据，这样可以使读取更加简单，方便使用 grep 等工具解析输出内容
+tcp port 80 : 这是一个常见的端口过滤器，表示仅抓取 80 端口上的流量，通常是 HTTP
+```
 
 ## top命令
 在top命令执行过程中可以输入以下命令对结果进行调整。
