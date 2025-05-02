@@ -6,6 +6,7 @@ tags:
 - redis
 - docker
 categories:
+
 - 部署
 ---
 
@@ -78,6 +79,7 @@ $ docker run -d \
 ```
 
 **参数说明：**
+
 - –name：容器名称；
 - -p：端口映射，宿主机端口:容器端口；
 - -v：挂载宿主机目录，宿主机目录(或文件):容器目录(或文件)；
@@ -85,6 +87,7 @@ $ docker run -d \
 - redis-server --appendonly yes： 在容器执行redis-server启动命令，并打开redis持久化配置
 
 **Redis 目录说明：**
+
 - 配置文件： /etc/redis/redis.conf
 - 数据文件目录：/data
 

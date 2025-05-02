@@ -6,13 +6,13 @@ tags:
 - 架构师
 - architect
 categories:
+
 - 架构
 ---
 
 最近在 infoq 上读了一篇关于架构师的文章，深受启发，用思维导图对内容做了一个梳理，以备后续查看。
 
 <!-- more -->
-
 ![architect](/images/other/architect.jpg "architect")
 
 

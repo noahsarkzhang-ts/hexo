@@ -9,6 +9,7 @@ tags:
 - Oauth2
 - Jwt
 categories:
+
 - Springboot
 ---
 
@@ -68,6 +69,7 @@ Springcloud 包：
 配置 Spring Security OAuth 授权服务器，需要对 Oauth2 协议有所了解，如果不了解可以参考这两篇文章： [OAuth 2.0 协议](https://oauth.net/2/), [理解 OAuth 2.0](https://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html). 
 
 配置授权服务器包含以下步骤：
+
 1. 初始化数据库表，包括存储客户端、token 及用户等信息的表；
 2. 配置用户读取及认证的方式；
 3. 配置客户端及 token 存储及读取方式；
@@ -76,6 +78,7 @@ Springcloud 包：
 
 ### 初始化数据库表
 在这里需要存储两类数据库表，一类是 Oauth2 相关的表，包括客户端及 token 表，这个可以由 Spring 官方提供。另一类是业务相关的用户权限的表，它们的表结构如下：
+
 
 1. Oauth2 表
 
@@ -190,6 +193,7 @@ INSERT INTO `oauth_client_details` VALUES ('oauth2', '', 'oauth2', 'app', 'passw
 
 ```
 
+
 2. 用户权限表
 
 ```sql
@@ -217,6 +221,7 @@ INSERT INTO `user` VALUES ('2', 'admin', 'e10adc3949ba59abbe56e057f20f883e');
 ### 配置用户认证信息
 
 在 Spring security 中提供了通用的认证功能，需要指定三个信息，分别是：
+
 1. UserDetailsService: 用户查询接口；
 2. UserDetails: 用户详情；
 3. PasswordEncoder: 用于密码字段的加解密。
@@ -434,11 +439,13 @@ public TokenStore tokenStore() {
 授权服务器在默认情况下生成的 token 是类似一个 uuid 的随机字串，它本身不携带任何用户信息，资源服务器验证 token 的有效性都需要通过授权服务器进行，会加大网络开销。Jwt 则不同，它本身可以携带不敏感的业务信息，如用户名及权限消息，只需要向授权服务器获取一次签名字段的密钥（对称密钥或非对称密钥），在客户端（或资源服务器）就可以在本地验证 token 的有效性，有效提高系统的效率。
 
 Jwt 的格式如下：
+
 1. Header: JSON 对象，用来描述 JWT 的元数据,alg 属性表示签名的算法,typ 标识 token 的类型；
 2. Payload: JSON 对象，重要部分，除了默认的字段，还可以扩展自定义字段，比如用户 ID、姓名、角色等等；
 3. Signature: 对 Header、Payload 这两部分进行签名，授权服务器使用私钥签名，然后在资源服务器使用公钥验签，保证数据不被篡改。
 
 配置的流程包括：
+
 1. 设置 JwtAccessTokenConverter, 加入对 Jwt 的支持；
 2. 设置 Jwt 签名密钥；
 3. 设置 TokenEnhancer, 可以加入额外的业务信息；
@@ -471,10 +478,12 @@ public KeyPair keyPair() {
 ```
 
 Jwt 签名有对称和非对称两种方式：
+
 1. 对称方式：授权服务器和资源服务器使用同一个密钥进行加签和验签 ，默认算法 HMAC; 
 2. 非对称方式：授权服务器使用私钥加签，资源服务器使用公钥验签，默认算法 RSA;
 
 项目中使用 RSA 非对称签名方式，具体实现步骤如下：
+
 1. 从密钥库获取密钥对(密钥 + 私钥)，如 oauth2.jks;
 2. 授权服务器使用私钥对 token 签名；
 3. 授权服务器提供 /oauth/token_key 接口，资源服务器通过该接口获取公钥，验证 token 签名。
@@ -486,6 +495,7 @@ keytool -genkey -alias oauth2 -keyalg RSA -keystore oauth2.jks -storepass 123456
 ```
 
 **参数说明：**
+
 - -genkey 生成密钥
 - -alias 别名
 - -keyalg 密钥算法
@@ -533,6 +543,7 @@ public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws E
 ### 配置 endpoint
 
 授权服务器提供了如下 endpoint :
+
 - /oauth/authorize：授权端点
 - /oauth/token：获取令牌端点
 - /oauth/confirm_access：用户确认授权端点
@@ -708,6 +719,7 @@ $ curl -X POST -d "username=admin&password=123456&grant_type=password&client_id=
 
 ```bash
 $ curl http://localhost:9091/hello?name=world \
+
 >   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsib2F1dGgyIl0sInVzZXJfbmFtZSI6ImFkbWluIiwic2NvcGUiOlsiYXBwIl0sImV4cCI6MTY0NTk2ODc5NSwidXNlcklkIjoyLCJhdXRob3JpdGllcyI6WyJBRE1JTiJdLCJqdGkiOiI0NzFkMzk3MC0xNzkzLTQ0MTQtOWIyYS0xOGNjMjRiMGJjOGIiLCJjbGllbnRfaWQiOiJkZXYifQ.gRcGmDAxdL4Kfmn3zyaIOo-5aceZs_DUYQz656bQbeDr7kdKJyf0BhVSbkUrgVUtqH6SmKIRZlxaDFY56Bf-QMWQ7tR__2q47wvom932tItmd31QShyMqmzBYzAkm1oM-lSo6bGNqip04x4kRjdCdk6cd49IekW3tfFBotUIYbd7GmXbDjNrDSQZEUEBa--R6kX4JAJdOE_AgM8nnEtHa5ng8Plnx6_lWnEvo2k0H5oKLMlmtYIGjmDjQlkNs22XP7t6-pvSLYyUOjv9XeTjpJw58Ss7_gJMgSNCZ48IW1hRF4tPJigjzD88UQsjgrjB5UX2kBUiTHLZCjcIEUbLfQ"
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed

@@ -8,6 +8,7 @@ tags:
 - 自定义登陆页面
 - 验证码
 categories: 
+
 - Springboot
 ---
 
@@ -18,8 +19,10 @@ Cas-Server：5.3.9
 Template：thymeleaf
 
 搭建一个基本的CAS服务器过程如下：
+
 - 下载CAS Overlay template，以5.3.9版本为例：
 地址为：https://github.com/apereo/cas-overlay-template/tree/5.3
+
 - 配置SSL环境；
 - 自定义登录页面；
 - 自定义用户鉴权；
@@ -82,6 +85,7 @@ server.ssl.key-store-password=changeit
 server.ssl.key-password=changeit
 ```
 
+
 - server.ssl.enabled：表示是否开启SSL
 - server.ssl.key-store, server.ssl.key-store-password, server.ssl.key-passwords可以在生成证书时指定，这里使用默认即可。
 
@@ -126,6 +130,7 @@ server.ssl.key-password=changeit
   "theme" : "base"
 }
 ```
+
 - @class：验证逻辑，默认即可
 - serviceId：配置url的正则表达式，url匹配则使用该service。
 - name：名称
@@ -327,6 +332,7 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=net.noahsark.cas.
 
 ## 5、加入验证码
 加入验证码，包含如下步骤：
+
 - 修改登录页面，加入验证码字段；
 - 创建包含验证码字段的Credential对象；
 - 修改webflow中绑定的Credential对象；

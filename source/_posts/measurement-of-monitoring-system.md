@@ -7,6 +7,7 @@ tags:
 - MTTA
 - MTTR
 categories:
+
 - 量化指标
 ---
 如何衡量一个系统的好坏，如何提升它，如何管理它？ 管理学大师彼得·德鲁克曾说 “你如果无法度量它，就无法管理它 (If you can’t measure it, you can’t manage it)”。从这里可以看出，如果想全面管理提升一个系统，就需要先对它的各项性能指标有一个衡量，知道它的薄弱点在哪里，找到病症所在才能对症下药。
@@ -14,7 +15,6 @@ categories:
 <!-- more -->
 
 ## 概览
-
 ![monitor-system-process](/images/measuement/monitor-system-process.webp "monitor-system-process")
 
 上图是监控系统运营指标和对应时间节点关系图，主要体现了 MTTD、MTTA、MTTF、MTTR、MTB F等指标与时间节点的对应关系，这些指标对于提升系统性能，帮助运维团队及早发现问题有很高的参考价值。业界有很多云告警平台也很注重这些指标，下面我们着重介绍一下 MTTA、MTTR 这两个和告警平台关系紧密的指标。
@@ -22,6 +22,7 @@ categories:
 ## MTTA
 MTTA(Mean time to acknowledge,平均应答时间）计算公式如下：
 ![MTTA](/images/measuement/MTTA.webp "MTTA")
+
 
 - t[i] -- 监控系统运行期间第i个服务出现问题后运维团队或者研发人员响应问题的时间；
 - r[i] -- 监控系统运行期间第i个服务出现问题的总次数。
@@ -32,10 +33,12 @@ MTTA(Mean time to acknowledge,平均应答时间）计算公式如下：
 MTTR(Mean Time To Repair,平均维修时间) 计算公式如下：
 ![MTTR](/images/measuement/MTTR.webp "MTTR")
 
+
 - t[ri] -- 监控系统运行期间第i个服务出现r次告警后服务恢复正常状态的总时间；
 - r[i] -- 监控系统运行期间第i个服务出现告警的总次数。
 
 平均修复时间（MTTR）是修复系统并将其恢复到正常功能所需的平均时间。运维或研发人员开始处理异常，MTTR 便开始计算，并且一直进行到被中断的服务完全恢复（包括所需的任何测试时间）为止。在 IT 服务管理行业中，MTTR 中的 R 并不总是表示维修。它也可以表示恢复，响应或解决。尽管这些指标都对应 MTTR，但是它们都有各自的含义，因此，要弄清楚要使用哪个 MTTR，有助于我们更好的分析理解问题。让我们简要地看一下它们各自的含义：
+
 > 1）平均恢复时间(Mean time to recovery)是从系统告警中恢复所需的平均时间。这涵盖了从服务异常导致告警到恢复正常的整个过程。MTTR是衡量整个恢复过程速度的指标。
 > 2）平均响应时间(Mean time to respond)表示从出现第一个告警开始到系统从故障中恢复到正常状态所需的平均时间，不包括告警系统中的任何延迟。该MTTR通常用于网络安全中，以衡量团队缓解系统攻击的效率。
 > 平均解决时间(Mean time to resolve)表示完全解决系统故障所花费的平均时间，包括检测故障、诊断问题以及确保故障不再发生来解决问题所需的时间。此 MTTR 指标主要用于衡量不可预见事件的解决过程，而不是服务请求。

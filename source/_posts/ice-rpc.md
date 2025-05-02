@@ -9,6 +9,7 @@ tags:
 - IceGrid
 - icegridnode
 categories:
+
 - RPC
 
 ---
@@ -22,7 +23,6 @@ categories:
 ### 整体架构
 
 Ice 客户端与服务器整体结构如下所示：
-
 ![Ice_Client_and_Server_Structure](/images/rpc/Ice_Client_and_Server_Structure.gif "Ice_Client_and_Server_Structure")
 
 **关键概念:**
@@ -37,6 +37,7 @@ Ice 应用程序接口（API），提供对 Ice 核心的通用部分（与 Slic
 
 **对象适配器**
 对象适配器是专用于服务器端的 Ice API 的一部分：只有服务器才使用对象适配器。对象服务器有若干功能，如下所示：
+
 1. 对象适配器把来自客户端的请求映射到服务器端特定对象的特定方法上；
 2. 对象适配器会跟踪在内存中的伺服对象，记录其对象标识，从而实现适配请求的功能；
 3. 对象适配器可以与一个或多个传输端点关联在一起。如果与某个适配器关联的传输端点不止一个，就可以通过多种传输机制到达在该适配器中的伺服对象。为了提供不同的服务质量和性能，一个适配器可以同时关联一个 TCP/IP|端点和一个 UDP 端点；
@@ -44,6 +45,7 @@ Ice 应用程序接口（API），提供对 Ice 核心的通用部分（与 Slic
 
 **Ice 代理**
 代理代码是由用户定义的 Slice 文件经过编译后生成的。一个客户端要想与一个 Ice 对象建立联系，必须持有该 Ice 对象的代理。代理是存在于客户端地址空间的 Ice 对象的代表。代理主要有两个功能：
+
 1. 为客户提供了一个向下（down-call）调用的接口。如果客户端调用代理中的某个操作，就会有一个 RPC 消息被发送到服务器，从而调用目标对象上的某个对应的操作。以代理为中介，客户端发起的调用最终会调用到服务器目标对象上相应的操作；
 2. 提供编码（marshaling）和解码（unmarshaling）。编码是将复杂的数据结构串行化，使其便于网络传输的过程。编码把数据转化为适合于传送的标准形式，这种形式不依赖于本地机器的字节序和填充规则。解码是编码的逆过程，将通过网络得到的串化数据重新构造成具有类型的结构化数据。解码之后得到的是与所使用的编程语言相适应的类型表示的数据。
 
@@ -55,11 +57,13 @@ Ice 应用程序接口（API），提供对 Ice 核心的通用部分（与 Slic
 Slice 是一种定义客户和服务器之间规范的基础性机制。每个 Ice 对象都有一个接口，该接口具有某些操作。接口、操作、客户与服务器间交换的数据类型，都是用 Slice 语言定义的。Slice 允许开发人员以一种独立于特定编程语言（比如 c++或 java）的方式定义客户端和服务器端的合约。Slice 定义有特定编译器编译成特定语言的 API，也就是说，与你所定义的接口和数据类型相对应的那部分 API，会有生成的代码组成。
 
 介绍了 Ice 的基本概念，我们使用官方的例子来验证客户端与服务器之间的通信模式：
+
 1. 直连模式：客户端与服务器直连，客户端需要明确服务器的地址及端口；
 2. Registry 注册模式：服务器将 Adpater 注册到 Registry，客户端通过 Registry 来获取服务器信息；
 3. Registry Node 模式：在 Registry 注册模式基础上，引入一个 Node, 来管理服务生命周期，如服务器的启动关闭，监视服务的状态，若服务关闭，则自动启动起来。
 
 **前置条件：**
+
 1. Ice 版本：Ice 3.5.1
 2. 操作系统：Win 10 专业版
 3. 假设：Ice 已经安装，具体版本可以在 ZeroC 官网下载。
@@ -249,7 +253,6 @@ public class PrinterCommandLineRunner implements CommandLineRunner {
 ## 直连模式
 
 在直连模式下，服务端需要明确指定端口，同时客户端根据指定的端口直接连接。
-
 ![ice-direct](/images/rpc/ice-direct.jpg "ice-direct")
 
 ### 服务端代码
@@ -275,7 +278,6 @@ Ice.ObjectPrx base = ic.stringToProxy("printerService:tcp -h 127.0.0.1 -p 30000"
 ## Registry 注册模式
 
 在直连模式下，需要明确知道服务端的代码，显然在分布式环境这种模式是不合适的。这就引入了 Registry 中心。服务端可以将地址注册到 Registry 中，客户端再去 Registry 查询服务，这样可以动态获取服务器地址。
-
 ![ice-registry](/images/rpc/ice-registry.jpg "ice-registry")
 
 ### 服务端代码
@@ -299,6 +301,7 @@ localInitializationData.properties.setProperty("PrinterAdapter.Endpoints", "tcp"
 ```
 
 参数说明：
+
 - PrinterAdapter.AdapterId: 指定 Adapter 对象的唯一标识符，以便供客户端定位，如 `printerService@PrinterAdapter`, 接口对象标识符@Adapter对象标识符；
 - PrinterAdapter.Endpoints: 指定 Adapter 对象的 endpoint, 在这里没有指定端口，它使用系统分配的随机端口；
 - Ice.Default.Locator: 注册中心地址，用于注册 Adpater 对象。
@@ -323,6 +326,7 @@ localInitializationData.properties.setProperty("Ice.Default.Locator", endpoint);
 ```
 
 参数说明：
+
 - Ice.Default.Locator: 注册中心地址，用于查询 Adapter 信息。
 
 ### Registry 配置
@@ -348,6 +352,7 @@ IceGridAdmin.Password=bar
 ```
 
 参数说明：
+
 - IceGrid.InstanceName: icegrid 实例的名称，在后续配置中可以使用，如 IceGrid.Registry.PermissionsVerifier;
 - IceGrid.Registry.Client.Endpoints: <font color="red">重要</font>, 指明 Registry 的地址和端口，该地址用来配置该参数  `Ice.Default.Locator`;
 - IceGrid.Registry.Server.Endpoints: 用于服务端对象适配器的注册 endpoint, 一般情况下不用指定端口，不过为了线上环境的安全，配置防火墙策略，可以设置端口；
@@ -382,7 +387,6 @@ IceGridAdmin.Password=bar
 ## Registry Node 模式
 
 在 Registry 注册模式基础上，引入一个 Node, 来管理服务生命周期，如服务器的启动关闭，监视服务的状态，若服务关闭，则自动启动起来。
-
 ![ice-registry-node](/images/rpc/ice-registry-node.jpg "ice-registry-node")
 
 ### 服务端代码
@@ -422,6 +426,7 @@ localInitializationData.properties.setProperty("Ice.Default.Locator", endpoint);
 ```
 
 参数说明：
+
 - Ice.Default.Locator: 注册中心地址，用于查询 Adapter 信息。
 
 ### Registry 配置
@@ -442,6 +447,7 @@ IceGrid.Node.CollocateRegistry=0
 ```
 
 参数说明：
+
 - Ice.Default.Locator: 配置 Registry endpoint ;
 - IceGrid.Node.Name: <font color="red">重要</font>, node 的名称，必须唯一，在后续应用的部署配置中会用到;
 - IceGrid.Node.Endpoints: 配置 node 的 endpoint, 不需要指定固定的端口；
@@ -502,6 +508,7 @@ icegridnode --Ice.Config=node1.cfg
 ```
 
 **配置说明：**
+
 - application: 应用标签，name 属性定义名字；
 - server-template：server 模板，定义了启动程序、apdater 及相关的配置参数，可以复用；
 - server: 逻辑上的服务器，是指能够通过 exe 命令的启动的一个服务程序。exe 就是启动这个服务的命令，这个命令不能是 exe 或者 .sh 执行文件。activation 属性，是设置服务的启动方式，on-demand 是按需启动option 标签是 exe 执行命令命令行的参数。这样的配置就相当与使用 `java -jar E:\bell-lab\ice\deploy-1\app\ice-lab.jar` 启动，`ice-lab.jar` 是打包成可执行的服务端 jar 包；
@@ -574,6 +581,7 @@ Ice.StdOut=E:\bell-lab\ice\deploy-1\master\out.log
 ```
 
 参数说明：
+
 - Ice.LogFile: 配置日志文件；
 - Ice.StdErr: 标准错误 IO 输出文件；
 - ce.StdOut: 标准控制台输出文件；
@@ -584,6 +592,7 @@ IceGrid.Node.Output=E:\bell-lab\ice\deploy-1\node1\db
 ```
 
 参数说明：
+
 - IceGrid.Node.Output：Node 日志输出目录，它会将运行在该结点下的 Apater 日志输出到该目录；
 
 **Adapter 日志**
@@ -594,6 +603,7 @@ localInitializationData.properties.setProperty("Ice.Trace.Locator","2");
 ```
 
 参数说明：
+
 - Ice.Trace.Network: 控制网络连接日志的输出级别；
 - Ice.Trace.Protocol: 控制输出 Ice Message;
 - Ice.Trace.Locator: 控制 Adpater 注册及查询信息的输出级别；
@@ -608,6 +618,7 @@ IceGrid.Node.CollocateRegistry=0
 ```
 
 参数说明：
+
 - IceGrid.Node.CollocateRegistry: 0 表示分开部署，1 表示同一个进程部署。
 
 ### Registry 主从配置
@@ -618,6 +629,7 @@ IceGrid.Registry.ReplicaName=Master/Replic1/Replica2
 ```
 
 参数说明：
+
 - IceGrid.Registry.ReplicaName: Master Registry 默认为 Master, 可以不配置，Repica Registry 根据需要配置为 ReplicaN，或其它名字。
 
 </br>

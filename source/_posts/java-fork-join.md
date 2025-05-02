@@ -7,11 +7,13 @@ tags:
 - 分而治之
 - fork/join
 categories:
+
 - Java基础
 ---
 ## 1. 概述
 ForkJoinPool运用了Fork/Join原理，使用“分而治之”的思想，将大任务分拆成小任务，从而分配给多个线程并行执行，最后合并得到最终结果，加快计算。ForkJoinPool可以充分利用多cpu，多核cpu的优势，提高算法的执行效率，ForkJoinPool整体结构如下图所示：
 ![fork-join](/images/fork-join.jpg "fork-join")
+
 
 - ForkJoinPool：框架的主体，存放了工作队列数组，对线程、工作队列及任务进行统一的管理。
 - WorkQueue：工作队列，是任务存储的容器，也是实现Work-Stealing的关键数据结构。
@@ -29,9 +31,11 @@ ForkJoinPool主要思想是：将一个大任务拆分成多个小任务后，�
 
 ### 2.2 工作窃取
 Fork/Join框架中使用的work stealing灵感来源于Cilk(开发Cilk的公司被Intel收购，原项目后来被升级为Clik Plus)。
+
 > Intel公司除了Clik Plus还有一个TBB(Threading Building Blocks)也是使用work stealing算法实现。
 
 Work Stealing算法是Fork/Join框架的核心思想：
+
 - 每个线程都有自己的一个WorkQueue，该工作队列是一个双端队列；
 - 队列支持三个功能push、pop、poll；
 - push/pop只能被队列的所有者线程调用，而poll可以被其他线程调用；
@@ -54,6 +58,7 @@ volatile WorkQueue[] workQueues;     // main registry
 #### 3.1.1 ctl字段
 ctl有64位，分成4组各16位，代表了不同的状态，在ForkJoinPool中是一个很重要的字段，很多控制逻辑都要根据ctl来完成，如下图所示：
 ![ctl](/images/ctl.jpg "ctl")
+
 - AC：活跃线程的数量，初始化-parallelism；
 - TC：所有线程的数量，初始化-parallelism；
 - SS：表示空闲线程栈（Treiber stack）栈顶元素的版本和状态；
@@ -231,6 +236,7 @@ s是一个随机值， ((s << 1) | 1)表达式得到一个随机的奇数，即�
 #### 3.1.4 indexSeed
 ```java
 /**
+
 * Increment for seed generators. See class ThreadLocal for
 * explanation.
 */
@@ -313,6 +319,7 @@ if(任务很小）{
 
 流程：
 1） 提交线程
+
 - 提交线程（不是工作线程）构建ForkJoinTask，提交给ForkJoinPool执行，如通过invoke方法；
 - 如果ForkJoinPool中的工作队列数组workQueues没有创建，则创建该数组，默认为parallelism的2倍；
 - 创建工作队列q，并将该队列添加到workQueues的偶数下标处；
@@ -320,6 +327,7 @@ if(任务很小）{
 - 提交线程会走到“激活工作线程”的流程，该流程会在后面的内容讲到。
 
 2）工作线程
+
 - 启动工作线程wt，扫描ForkJoinPool的workQueues数组，窃取一个ForkJoinTask去执行；
 - 随机生成一个在数组大小范围内的奇数，作为扫描的起始位置，这样可以避免多个线程同时从一个位置扫描，减少竞争；
 - 遍历工作队列workQueues数组，如果工作队列中有任务，则从其base位置处取得任务t，如果该队列中还有其它任务，则“激活工作线程”，让其它工作线程来窃取其它任务；
@@ -332,6 +340,7 @@ if(任务很小）{
 ![fork-flow](/images/fork-flow.jpg "fork-flow")
 
 流程：
+
 - 执行fork的线程可以是外部线程，也可以是工作线程，这两种方式处理方法不一样；
 - 判断线程的类型是否ForkJoinWorkerThread；
 - 如果是ForkJoinWorkerThread类型，则将任务提交到工作线程的工作队列中，执行“激活工作线程”流程；
@@ -341,6 +350,7 @@ if(任务很小）{
 ![singal-worker](/images/singal-worker.jpg "singal-worker")
 
 流程：
+
 - 设置工作队列数组为ws,当前工作队列为q；
 - 判断当前活跃线程是否小于parallelim，如果已经大于parallelim，则直接退出；
 - 再判断是否有空闲线程，有空闲线程则唤醒空闲线程；
@@ -352,6 +362,7 @@ if(任务很小）{
 ![join-flow](/images/join-flow.jpg "join-flow")
 
 流程：
+
 - 执行join的任务为task，执行join方法的线程为wt，wt的工作队列为w；
 - 判断task任务是否已经结束，如果已经结束，直接返回结果即可；
 - task没有结束，则判断wt的类型，是否为ForkJoinWorkerThread；
@@ -366,6 +377,7 @@ if(任务很小）{
 ![work-stealing-flow](/images/work-stealing-flow.jpg "work-stealing-flow")
 
 流程：
+
 - 设置task为被窃取的任务，w为当前工作线程的工作队列；
 - 遍历工作队列数组，找到窃取task任务的工作线程,其工作队列为v，判断条件为工作线程的v.cureentSteal==task; 
 - 判断工作队列v是否为空；
@@ -374,8 +386,10 @@ if(任务很小）{
 
 ## 5. 实例
 我们通过ForkJoinPool框架实现快速排序算法，来展示将在一个线程中执行的递归算法转化为在多个线程中“分治”执行的算法。维基百科关于快速排序的定义如下：
+
 > 快速排序使用分治法（Divide and conquer）策略来把一个序列（list）分为较小和较大的2个子序列，然后递归地排序两个子序列。
 步骤为：
+
 - 挑选基准值：从数列中挑出一个元素，称为“基准”（pivot），
 - 分割：重新排序数列，所有比基准值小的元素摆放在基准前面，所有比基准值大的元素摆在基准后面（与基准值相等的数可以到任何一边）。在这个分割结束之后，对基准值的排序就已经完成，
 - 递归排序子序列：递归地将小于基准值元素的子序列和大于基准值元素的子序列排序。

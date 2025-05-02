@@ -9,6 +9,7 @@ tags:
 - DelayedQueue
 - 周期性任务
 categories:
+
 - Java基础
 ---
 
@@ -17,10 +18,10 @@ categories:
 <!-- more -->
 
 ## 1. 概述
-
 ![ScheduledThreadPoolExecutor](/images/scheduled-thread-pool-executor.jpg "ScheduledThreadPoolExecutor")
 
 从上图可以看到ScheduledThreadPoolExecutor,DelayedWorkQueue及ScheduledFutureTask三者之间的关系，在ScheduledThreadPoolExecutor中使用的队列是DelayedWorkQueue，用于存储执行的任务；提交到DelayedWorkQueue中的是ScheduledFutureTask类型的任务，通过ScheduledFutureTask的引用可以获取结果或者取消任务，下面对这三个类做一个简要描述：
+
 - DelayedWorkQueue : 底层的存储结构是一个小堆，它根据延时的时间进行排序，堆顶的元素永远是最小的；加入一个元素时，首先被加到队列的最后一个元素中，然后使用siftUp操作，跟它的父结点进行比较，如果比父结点小，则交换位置，递归执行这样的操作，直到比父结点元素都大；取出元素永远是取出堆顶元素，然后将队列中的最后一个元素移动到堆顶，执行siftDown操作，跟左右子结点中的最小元素进行比较，如果比子结点大， 则交换位置，递归执行这样的操作，直到比子结点小为止。
 - ScheduledFutureTask : 提交到DalayWorkQueue队列中的元素是ScheduledFutureTask类型，它继承了Runnable接口，包含了任务的执行逻辑，同时它也继承了Future接口，具备了取消任务、同步获取返回结果的功能。在ScheduledFutureTask中有几个重要的参数：state(状态), callable(有返回值的runnable对象), outcome(返回结果), runner(执行线程), waiters(等待队列), state表示任务执行的状态，如果任务在未完成之前执行get操作（获取返回结果），那么调用线程会被阻塞，该线程会加入到waiters队列中，等待runner线程执行set操作（设置返回结果）之后被唤醒。如果ScheduledFutureTask执行了取消操作之后，它会被移除DelayedWorkQueue队列，state设置为取消状态，任务将不再被执行，如果任务已经执行，将会向其发送interrupt操作。
 - ScheduledThreadPoolExecutor : ScheduledThreadPoolExecutor扩展了ThreadPoolExecutor类，在ThreadPoolExecutor的基础上，可以执行延时任务和周期性任务，借助DelayedWorkQueue类，实现了任务的延时执行，对于周期性任务，在上一个周期执行结束之后，会重新计算下一个周期的延时时间，将任务重新加入到DelayedWorkQueue队列中，等待下次任务的调度。
@@ -34,6 +35,7 @@ DelayedWorkQueue跟DelayQueue、PriorityQueue一样是基于堆的数据结构�
 DelayedWorkQueue队列中元素的增加或删除，都会改变堆的结构，在DelayedWorkQueue中，提供了两种调整堆的操作：siftUp和siftDown，后面的章节会详细介绍。
 
 在分析DelayedWorkQueue之前，先了解下堆这种数据结构：
+
 > 堆（英语：Heap）是计算机科学中的一种特别的树状数据结构。若是满足以下特性，即可称为堆：“给定堆中任意节点P和C，若P是C的父母节点，那么P的值会小于等于（或大于等于）C的值”。若父母节点的值恒小于等于子节点的值，此堆称为最小堆（min heap）；反之，若父母节点的值恒大于等于子节点的值，此堆称为最大堆（max heap）。在堆中最顶端的那一个节点，称作根节点（root node），根节点本身没有父母节点（parent node）
 
 一个小堆的结构如下所示：
@@ -78,6 +80,7 @@ static class DelayedWorkQueue extends AbstractQueue<Runnable>
 ```
 
 说明：
+
 - 初始容量：DelayedWorkQueue的容量无限的队列，其初始容量为16，随着结点数的增加，会进行自动扩容；
 - 底层数据：存储结构为数组；
 - leader-follow线程模式：堆顶结点会只分配一个leader线程去消费，其它线程会等待leader线程唤醒才能消费下一个结点；如果堆顶结点还需要延时delayed（ns）才能消费，那么leader需要阻塞delayed（ns）；
@@ -126,6 +129,7 @@ public boolean offer(Runnable x) {
 }
 ```
 该方法主要包含4个步骤：
+
 - 如果结点数大于队列长度，则执行扩容；
 - 如果当前结点数为0，则直接将新插入的结点赋值给数组的第一个元素；
 - 如果当前结点为大于0，则将结点插入到堆中的最后一个结点，并执行siftUp操作；
@@ -214,6 +218,7 @@ public RunnableScheduledFuture<?> take() throws InterruptedException {
 
 ```
 该方法主要包含5个步骤：
+
 - 获取堆顶结点，即最小值；
 - 如果堆顶为空，说明队列中没有结点，则直接阻塞调用线程，等待被唤醒；
 - 如果堆顶不为空， 计算堆顶结点的延时，如果已经过期，则直接返回堆顶结点，并执行siftDown操作；
@@ -271,6 +276,7 @@ DelayedWorkQueue底层使用了堆的数据结构来存储延时/周期性的任
 ## 3. ScheduledFutureTask
 ![ScheduledFutureTask](/images/ScheduledFutureTask.jpg "ScheduledFutureTask")
 ScheduledFutureTask类的继承关系比较复杂，现在对它进行一个梳理。
+
 - Comparable : 实现任务按照延时进行比较；
 - Delayed : 获取任务所剩延时；
 - Runnable ：封装任务的业务逻辑；
@@ -331,12 +337,14 @@ private class ScheduledFutureTask<V>
 ScheduledFutureTask的属性分为两类，一是与调度时间相关的，二是与Future相关的，下面对这两类属性进行讨论。
 
 1）调度时间相关
+
 - sequenceNumber : 第一个任务都会分配一个唯一的自增序列号；
 - time : 表示任务执行的时间点，单位为ns(纳秒)；
 - period : 任务执行的周期，如果是正数，表示固定频率执行，如果是负数，表示固定延时执行， 如果是0，则表示非同期性任务，单位为ns(纳秒)；
 - heapIndex ： 任务在堆中的下标，用于快速取消任务。
 
 2）Future相关
+
 - state ：任务的运行时状态，状态值有：NEW, COMPLETING, NORMAL, EXCEPTIONAL, CANCELLED, INTERRUPTING和INTERRUPTED，含义如下：
 NEW : 任务的初始状态；
 COMPLETING : 临时状态，表示任务run方法已经执行结束，但未设置返回结果；
@@ -350,6 +358,7 @@ NEW -> COMPLETING -> NORMAL
 NEW -> COMPLETING -> EXCEPTIONAL
 NEW -> CANCELLED
 NEW -> INTERRUPTING -> INTERRUPTED
+
 - callable : 封装了runnable及结果对象，真正的业务逻辑在这里；
 - outcome ： 结果对象；
 - runner : 正在执行任务的线程；
@@ -461,6 +470,7 @@ private int awaitDone(boolean timed, long nanos)
 }
 ```
 awaitDone方法包含一个死循环，有三种情况退出该方法：1) 线程被中断；2）线程被唤醒，且任务已经完成，正常退出；3）超时退出。它包含以下的处理逻辑：
+
 - 线程被中断，则抛出InterruptedException，退出方法；
 - 线程状态大于COMPLETING，说明任务完成，退出方法；
 - 状态等于COMPLETING，说明任务即将完成，则线程让出cpu，重新调度；
@@ -485,6 +495,7 @@ protected void set(V v) {
 }
 ```
 set方法流程比较清晰，包含下面这些流程：
+
 - 通过CAS设置状态(state)为COMPLETING；
 - 设置返回结果；
 - 设置状态(state)为NORMAL，可见COMPLETING是一个很短暂的状态，与NORMAL状态中间只有一个设置返回结果的操作；
@@ -574,6 +585,7 @@ public void run() {
 }
 ```
 ScheduledFutureTask执行逻辑包含以下几个步骤：
+
 - 判断是否为周期性任务；
 - 判断该任务是否应该取消，取消的情况包括：1）线程池是否关闭；2）线程池关闭的情况下，任务是否继续执行的策略；
 - 如果是非周期性任务，调用FutureTask的run方法；
@@ -624,6 +636,7 @@ public void run() {
 }
 ```
 非周期性任务执行的主要逻辑如下：
+
 - 判断当前任务的状态是为NEW，且设置任务的runner为当前线程；
 - 调用Callable接口，执行真正的业务逻辑；
 - 调用set操作，设置返回结果，唤醒被阻塞的线程；
@@ -659,6 +672,7 @@ protected boolean runAndReset() {
 }
 ```
 相对于非周期性任务，runAndReset有以下不同：
+
 - 周期性任务没有返回值；
 - 周期性任务不更新state(状态)，它的状态永远是NEW，以便下一次调用。
 
@@ -678,6 +692,7 @@ long triggerTime(long delay) {
 }
 ```
 从上面可以看出二者的区别，下一次任务的执行时间，计算公式如下：
+
 - 固定频率 ：上一次任务的执行时间点 + 延时，在这种情况下，如果执行时间大于延时(delay)的话，会出现两个任务的重叠，如果已经错过了下一次任务的执行时间点，提交到DelayedWorkQueue中的任务会马上执行；
 - 固定延时 ：上一次任务执行后的时间（当前时间） + 延时，这种情况下，前后两个任务不会重叠。
 
@@ -736,6 +751,7 @@ public ScheduledFuture<?> schedule(Runnable command,
 }
 ```
 schedule方法主要包含两个步骤：
+
 - 构建ScheduledFutureTask对象，传入的参数包括Runnable对象，返回结果对象及下一次业务执行的时间，前两个参数为会封装到callable属性中，下一次业务执行时间赋值给time属性，执行时间是一个相对于1970-01-01 00:00:00 UTC的差值(ns);
 - 调度执行任务；
 

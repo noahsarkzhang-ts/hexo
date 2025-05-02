@@ -5,6 +5,7 @@ updated: 2023-02-18 19:36:14
 tags:
 - docker
 categories:
+
 - MQTT
 ---
 
@@ -15,6 +16,7 @@ categories:
 ## 镜像打包
 
 本项目使用的构建工具是 Maven, 自然地使用 Maven Plugin 来进行镜像打包。具体的操作包括以下步骤：
+
 1. 构建打包环境；
 2. 引入 Maven Dockfile 插件；
 3. 编辑 Dockfile 文件；
@@ -101,6 +103,7 @@ DOCKER_HOST=tcp://192.168.100.101:2375
 ### 编辑 Dockfile 文件
 
 在 Dockerfile 中包括几个重要的部分：
+
 1. 定义基础镜像；
 2. 接收输入的参数；
 3. 设定时区和加入字体；

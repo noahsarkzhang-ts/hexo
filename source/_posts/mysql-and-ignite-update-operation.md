@@ -9,6 +9,7 @@ tags:
 - b+tree
 - 固化内存
 categories:
+
 - 数据库
 ---
 
@@ -45,6 +46,7 @@ update t_token_info set state=1,update_date=now(),server_id=12 where  token_id=t
 ![mysql-update](/images/mysql-update.jpg "mysql-update")
  
 涉及到的IO操作如下：
+
 1. 读取记录：包括B+Tree索引结点及数据的读取，假定索引及数据没有加载到内存，且B+Tree索引深度为2（分支因子为500且结点大小为4K的四级树可以存储256 TB的数据），则需要3次IO操作，两次读取索引结点，一次读取数据；
 2. 写入操作：包括预写日志（存储引擎的redo log日志）、binlog日志及写入的数据，至少三次IO操作，如果新写入的数据，导致B+Tree叶子结点进行分裂操作，则需要更多的IO操作；
 3. 更新索引操作：因为更新的字段state及activeId是二级索引，更新这两个值，在事务中需要更新索引。更新索引又涉及到读取索引结点，更新索引的内容，等同于多次对数据进行更新操作，索引越多，则IO操作越多。
@@ -57,6 +59,7 @@ update t_token_info set state=1,update_date=now() where server_id=12;
 ![mysql-batch-update](/images/mysql-batch-update.jpg "mysql-batch-update")
 
 批量更新的操作如下：
+
 1. 根据activeId的索引找到更新的tokenId列表；
 2. 遍历tokenId列表，取到tokenId，再根据主键索引找到token的数据；
 3. 执行单个token的执行操作，直到所有的token更新完毕；
@@ -66,6 +69,7 @@ update t_token_info set state=1,update_date=now() where server_id=12;
 ### 2.1 ignite固化内存模型
 ![Durable_Memory_Diagram](/images/Durable_Memory_Diagram.png "Durable_Memory_Diagram")
 iginte固化内存模型的层次：
+
 - 内存区域：可以根据业务需要，可以将内存分为不同的大小的段，每一个区域分为不同的页，如存放key-value对（ignite本质是基于key-value的内存数据库）的数据页；B+Tree元数据页，存放每一个索引的根结点及层次信息；索引页面，存放B+Tree结点，根据索引字段进行排序，值存储数据结点的页号及偏移值；空闲页，由多个空闲链表进行维护。
 - 页：分为不同类型，一般为4K，可以进行配置。
 
@@ -74,8 +78,10 @@ iginte固化内存模型的层次：
 应用定义和使用的SQL索引是以B+Tree数据结构的形式进行维护的。每个唯一索引Ignite会实例化并且管理一个专用的B+Tree实例。
 整个B+Tree的目的就是链接和排序在固化内存中分配和存储的索引页面。从内部来说，索引页面包括了定位索引值、索引指向的缓存条目在数据页面中的偏移量、还有到其它索引页面的引用（用来遍历树）等所有必要的信息，缓存的键也会存储于B+Tree，它们通过哈希值进行排序。
 B+树的元页面需要获得特定B+Tree的根和它的层次，以高效地执行范围查询。比如，当执行myCache.get(keyA)时，它会触发下面的操作流程：
+
 1. Ignite会查找myCache属于那个内存区；
 在该内存区中，会定位持有myCache的键的B+Tree的元页面；
+
 2. 根据keyA的哈希值，然后在B+Tree中检索该键所属的索引页面；
 3. 如果对应的索引页面在内存/磁盘中没找到，那么意味着其在myCache中不存在，然后Ignite会返回null；
 4. 如果索引页面存在，那么它会包含找到缓存条目keyA所在的数据页面的所有必要信息；
@@ -90,6 +96,7 @@ B+树的元页面需要获得特定B+Tree的根和它的层次，以高效地执
 update t_token_info set state=1,update_date=now(),server_id=12 where  token_id=token1;
 ```
 在ignite内部中，一次操作为转化为缓存的一次put操作。myCache.put(keyA,valueA)操作的执行流程如下：
+
 1. Ignite会找到myCache所属的内存区；
 2. 在该内存区中，会定位持有myCache的键的B+树的元数据页面；
 3. 根据keyA的哈希值，然后在B+树中检索该键所属的索引页面；
@@ -106,6 +113,7 @@ update t_token_info set state=1,update_date=now() where server_id=12;
 使用这种方式，批量更新的操作等同于：一次select操作（客户端操作） + n次单条记录的更新操作（客户端批量提交到服务器器），下面就对批量更新的性能进行验证。
 
 ## 3. 性能验证
+
 1. 场景1：假定有20万token数据，每一个服务器上的token数为2000个；
 2. 场景1：假定有20万token数据，每一个服务器上的token数为200个；
 3. 场景1：假定有20万token数据，每一个服务器上的token数为20个；
@@ -113,6 +121,7 @@ update t_token_info set state=1,update_date=now() where server_id=12;
 分别在三种场景下，执行两种操作：1）按照唯一键token_id更新; 2）按照server_id进行批量更新。
 
 ## 4. 结论（ignite使用纯内存）
+
 1. ignite按照主键进行更新，QPS可以达到10,000，响应时间在5~10ms，性能相比mysql，有较大的提升。
 2. ignite中批量更新操作会转换为：一个select操作 + n个token的更新操作。在批量执行token前，客户端需要执行一次select操作，获取影响的记录（获取主键），然后向服务器批量提交更新操作（根据主键进行操作）。客户端执行一次select操作，性能上会有一定的影响；
 3. 根据三种场景的测试，按照服务器进行批量更新操作，QPS及响应时间受两个因素影响：1）数据库服务器1S内可更新的缓存数量SC；2）一个操作影响的记录数ST。在SC确定的情况下，ST越大，QPS越小，响应时间越长，ST越小，QPS越大，响应时间越短。目前测试得出，在单台服务上1S可以完成对20，000个缓存的更新操作，如果ST为2000个，QPS只能达到10，受SC影响，如果ST为200个，QPS增大10倍，响应时间减少到10/1。

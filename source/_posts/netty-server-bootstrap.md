@@ -5,6 +5,7 @@ updated: 2021-08-26 14:39:14
 tags:
 - ServerBootstrap
 categories:
+
 - Netty
 ---
 
@@ -47,10 +48,10 @@ try {
 }
 ```
 前后的文章已经分析过 EventLoopGroup 及 ChannelFutue，这里重点分析 bind 流程。
-
 ![netty-bind](/images/netty/netty-bind-v2.jpg "netty-bind")
 
 主要流程如下：
+
 1. 新建 NioServerSocketChannel 对象；
 2. 初始化 NioServerSocketChannel 对象，主要是向其添加 ChannelHandler 对象；
 3. 注册 NioServerSocketChannel 对象，主要是将该对象注册到 EventLoop 和 底层的 Selector 对象中；
@@ -194,6 +195,7 @@ public void channelRead(ChannelHandlerContext ctx, Object msg) {
 ### 2.3 注册 NioServerSocketChannel 对象
 
 注册的操作主要包括两个部分：
+
 - 将 NioServerSocketChannel 分配给 EventLoop，该操作是通过 BossGropu 来完成；
 - 将 NioServerSocketChannel 注册到 Selector 对象上，用于接收网络请求。 每一个 NioServerSocketChannel 都包含一个 Java SelectableChannel 对象，网络请求最终都是通过这个对象来完成。
 
@@ -286,6 +288,7 @@ public final void register(EventLoop eventLoop, final ChannelPromise promise) {
 ```
 
 register0 方法在 EventLoop 线程中执行，它主要包括下面几个步骤：
+
 - 执行操作系统层面的注册操作，主要是调用 java api 来实现；
 - 将 channel 状态设置为注册完成状态；
 - 向 pipeline 添加 ChannelHandler，在这里调用 channel 初始化时添加到 pipeline 中的 PendingHandlerAddedTask；
@@ -357,6 +360,7 @@ doRegister 方法在 AbstractNioChannel 中实现，在这个方法中，主要�
 bind 操作主要是完成底层 ServerSocketChannel 对象的地址绑定操作，其调用顺序为：AbstractBootstrap.doBind0 --> AbstractChannel.bind --> DefaultChannelPipeline.bind --> AbstractChannelHandlerContext.bind --> HeadContext.bind --> AbstractUnsafe.bind。最后调用 AbstractUnsafe 中的 bind 方法。
 
 在 bind 方法中，主要做了下面的工作：
+
 - 执行地址绑定操作，具体实现取决于 Channel 的子类；
 - 判断 channel 是否 Active，正常情况，绑定成功之后便会激活 channel；
 - 触发 channelActive 事件，执行后续的 read 操作；

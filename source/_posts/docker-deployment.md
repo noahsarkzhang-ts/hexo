@@ -5,6 +5,7 @@ updated: 2022-01-29 15:43:58
 tags:
 - docker
 categories:
+
 - 部署
 ---
 
@@ -197,6 +198,7 @@ Server:
 ## Docker 镜像加速
 
 国内从 DockerHub 拉取镜像速度会比较慢，可以配置国内的镜像加速器。Docker 官方和国内很多云服务商都提供了国内加速器服务，例如：
+
 
 - 科大镜像：https://docker.mirrors.ustc.edu.cn/
 - 网易：https://hub-mirror.c.163.com/

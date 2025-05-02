@@ -8,6 +8,7 @@ tags:
 - 轻量级锁
 - 重量级锁
 categories:
+
 - Java基础
 ---
 之前在讲ReentrantLock时，在Java中实现线程的同步与互斥，除了JUC中提供的各种锁，还可以使用snchronized关键字，它被用于方法及方法块中，在JDK1.6之前，synchronized是基于monitor锁对象来实现的，而moniter对象是基于操作系统的futex来实现的，相对比较重量级，这种锁也被称为“重量级锁”。所以，在JDK1.6之后，JDK对synchronized进行了种种优化，为了减少获得锁和释放锁所带来的性能消耗，提高性能，引入了“轻量级锁”和“偏向锁”。
@@ -23,6 +24,7 @@ synchronized锁一共有4种状态，级别从低到高依次是：无锁、偏�
 ![synchronized-overview](/images/synchronized-overview.jpg "synchronized-overview")
 
 **重要的概念：**
+
 - 对象头：在Java中，每一个对象都可以作为锁，锁的相关信息存储在每一个对象头的Mark Word（标记字段）中；
 - 偏向锁：在无锁状态下，如果系统支持偏向锁（默认支持），线程使用CAS修改Mark Word的thread id字段，如果修改成功则获得偏向锁。
 - 轻量级锁：如果获取偏向锁失败，当前线程会向VM线程提交撤销偏向锁的任务，提交任务后，当前线程会被阻塞，直到任务结束后才会被VM线程唤醒。VM线程执行撤销任务，这时候JVM会进入安全点，所有运行的java线程都会被阻塞（包括获取偏向锁的线程）。在VM线程中，会检查获取锁的线程的状态，如果线程已经不活动或不在同步块中，则将锁状态改为无锁状态；如果线程还在同步块中，则将锁状态升级为轻量级锁，之前获取偏向锁的线程持有轻量级锁。执行完操作之后唤醒被阻塞的当前线程，且退出安全点，所有阻塞在安全点上的线程也会被唤醒；
@@ -49,12 +51,14 @@ synchronized锁一共有4种状态，级别从低到高依次是：无锁、偏�
 
 safepoint安全点顾名思义是指一些特定的位置，当线程运行到这些位置时，线程的一些状态可以被确定(the thread's representation of it's Java machine state is well described)，比如记录OopMap的状态，从而确定GC Root的信息，使JVM可以安全的进行一些操作，比如开始GC。
 safepoint指的特定位置主要有:
+
 1. 循环的末尾 (防止大循环的时候一直不进入safepoint，而其他线程在等待它进入safepoint)
 2. 方法返回前
 3. 调用方法的call之后
 4. 抛出异常的位置
 
 safepoint使用场景主要有：
+
 1. Garbage collection pauses
 2. Code deoptimization
 3. Flushing code cache
@@ -206,12 +210,14 @@ JVM的开发者发现在很多情况下，在Java程序运行时，同步块中�
 
 **加锁过程：**
 
+
 1. 在线程栈中创建一个Lock Record，将其obj（即上图的Object reference）字段指向锁对象；
 2. 直接通过CAS指令将Lock Record的地址存储在对象头的Mark Word中，如果对象处于无锁状态则修改成功，代表该线程获得了轻量级锁。如果失败，进入到步骤3；
 3. 如果是当前线程已经持有该锁了，代表这是一次锁重入。设置Lock Record第一部分（Displaced Mark Word）为null，起到了一个重入计数器的作用。然后结束；
 4. 走到这一步说明发生了竞争，需要膨胀为重量级锁。
 
 **释放锁过程：**
+
 1. 遍历线程栈,找到所有obj字段等于当前锁对象的Lock Record；
 2. 如果Lock Record的Displaced Mark Word为null，代表这是一次重入，将obj设置为null后continue；
 3. 如果Lock Record的Displaced Mark Word不为null，则利用CAS指令将对象头的Mark Word恢复成为Displaced Mark Word。如果成功，则continue，否则膨胀为重量级锁。
@@ -221,12 +227,14 @@ JVM的开发者发现在很多情况下，在Java程序运行时，同步块中�
 monitor对象包括三个链表：_cxq，_EntryList及_WaitSet，被阻塞的线程封装为ObjectWaiter对象，而**ObjectWaiter对象存在于WaitSet、EntryList、cxq等集合中，或者正在这些集合中移动**，那么ObjectWaiter是怎么移动的？下面的内容将进行分析。
 
 **wait方法**
+
 1. 当前线程封装成ObjectWaiter对象，状态为TS_WAIT；
 2. ObjectWaiter对象被放入_WaitSet中；
 3. 释放锁；
 3. 当前线程挂起；
 
 **monitorenter竞争锁**
+
 1. 偏向锁逻辑：判断是否偏向锁，不是则执行轻量级锁逻辑；
 2. 轻量级锁逻辑：如果是无锁状态，就通过CAS去竞争锁，否则判断重入，如果不是当前线程持有锁，执行锁膨胀；
 3. 重量级锁逻辑：构造OjectMonitor对象，通过CAS去设置owner，如果失败就将线程加入_cxq队列的首位；
@@ -300,10 +308,12 @@ void ATTR ObjectMonitor::EnterI (TRAPS) {
 ```
 
 **notify方法**
+
 1. 执行过wait方法的线程都在队列_WaitSet中，此处从_WaitSet中取出第一个；
 2. 根据Policy的不同，将这个线程放入_EntryList或者_cxq队列中的起始或末尾位置。
 
 Policy逻辑如下：
+
 
 1. Policy == 0：放入_EntryList队列的排头位置；
 2. Policy == 1：放入_EntryList队列的末尾位置；
@@ -312,12 +322,14 @@ Policy逻辑如下：
 5. Policy等于其他值，立即唤醒ObjectWaiter对应的线程。
 
 **monitorexit释放锁**
+
 1. 偏向锁逻辑，此处不是；
 2. 轻量级锁逻辑，此处不是，执行锁膨胀；
 3. 重量级锁逻辑，根据QMode的不同，将ObjectWaiter从_cxq或者_EntryList中取出后唤醒；
 4. 唤醒的线程会继续执行挂起前的代码。
 
 QMode逻辑如下：
+
 1. QMode = 2，并且_cxq非空：取_cxq队列排头位置的ObjectWaiter对象，调用ExitEpilog方法，该方法会唤醒ObjectWaiter对象的线程，此处会立即返回，后面的代码不会执行了；
 2. QMode = 3，并且_cxq非空，把_cxq队列首元素放入_EntryList的尾部，执行第5步；
 3. QMode = 4，并且_cxq非空，把_cxq队列首元素放入_EntryList的头部，执行第5步；

@@ -5,6 +5,7 @@ updated: 2022-03-05 16:34:09
 tags:
 - nacos
 categories:
+
 - 部署
 ---
 
@@ -15,6 +16,7 @@ Nacos 可以用来作配置中心和服务注册中心，在微服务系统中�
 ## Nacos 介绍
 
 阿里的介绍如下：
+
 > Nacos 致力于帮助您发现、配置和管理微服务。Nacos 提供了一组简单易用的特性集，帮助您快速实现动态服务发现、服务配置、服务元数据及流量管理。
 > Nacos 帮助您更敏捷和容易地构建、交付和管理微服务平台。 Nacos 是构建以“服务”为中心的现代应用架构 (例如微服务范式、云原生范式) 的服务基础设施。
 
@@ -29,6 +31,7 @@ Nacos 可以用来作配置中心和服务注册中心，在微服务系统中�
 
 Nacos 依赖 Java 环境来运行。如果您是从代码开始构建并运行 Nacos，还需要为此配置 Maven 环境，请确保是在以下版本环境中安装使用:
 
+
 - 64 bit OS，支持 Linux/Unix/Mac/Windows，推荐选用 Linux/Unix/Mac。
 - 64 bit JDK 1.8+；下载 & 配置。
 - Maven 3.2.x+；下载 & 配置。
@@ -38,6 +41,7 @@ Nacos 依赖 Java 环境来运行。如果您是从代码开始构建并运行 N
 ## 配置 Mysql
 
 在 0.7 版本之前，在单机模式时 Nacos 使用嵌入式数据库实现数据的存储，不方便观察数据存储的基本情况。0.7 版本增加了支持 Mysql 数据源能力，具体的操作步骤：
+
 1. 安装数据库，版本要求：5.6.5+ ; 
 2. 初始化 Mysql 数据库，数据库初始化文件：conf/nacos-mysql.sql, 数据库名为：nacos_config; 
 3. 修改 conf/application.properties 文件，增加支持 Mysql 数据源配置（目前只支持mysql），添加 Mysql 数据源的 url、用户名和密码。
@@ -73,7 +77,6 @@ startup.cmd -m standalone
 ### 登陆
 
 启动服务之后，使用 `http://localhost:8848/nacos/#/login` 地址登陆。
-
 ![nacos](/images/spring-cloud/nacos-login.jpg "nacos-login")
 
 默认用户名和密码：nacos/nacos

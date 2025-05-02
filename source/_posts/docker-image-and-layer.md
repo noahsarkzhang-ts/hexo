@@ -8,6 +8,7 @@ tags:
 - 分层
 - 文件
 categories: 
+
 - 容器
 ---
 
@@ -34,6 +35,7 @@ overlay2/
 ├── layerdb
 └── repositories.json
 ```
+
 - distribution目录存放layer的diff_id与digest的对应关系，关于二者的关系后面内容再描述；
 - imagedb、layerdb分别存放镜像及分层的元数据；
 - repositories.json存放镜像仓库的相关数据；
@@ -50,6 +52,7 @@ repositories.json 中记录了和本地 image 相关的 repository 信息，主�
         }
 }
 ```
+
 - 存放了**repository**名称**haproxy**、**tag(latest)** 及**image id(08d602...)d**的信息；
 - 存放了**repository image id**与**digest**的对应关系，haproxy:latest签名为：haproxy@sha256:530809...，可以通过两种方式pull镜像，即名称(haproxy:latest)和digest；
 - image id是Image的唯一标示，其数值根据该镜像的元数据配置文件采用sha256算法的计算获得。
@@ -101,6 +104,7 @@ imagedb存放了image的元数据配置文件，该文件记录了image元数据
     }
 }
 ```
+
 - 在rootfs中diff_ids包含了三个分层layer，从上到下依次是从底层到顶层，最底层是6744a...，最顶层是28de1...，通过diff_ids，可以将镜像与分层关联起来，如何关联见下面内容。
 - 在该镜像中，有三个只读层，再加上一个init层，一个可读写层，总共有五个分层layer。
 
@@ -111,6 +115,7 @@ docker中的镜像是分层的，划分为只读层和读写层。其中docker�
 
 #### 2.3.1 layer只读层
 在layer的属性中，diffID采用SHA256算法，基于分层文件包中的内容计算得到。而chainID是基于内容存储的索引，这是根据当前层与所有祖先镜像层diffId计算出来的，具体算法如下：
+
 1. 如果该镜像层是最底层（没有父镜像层），该层的diffID便是chainID；
 2. 如果不是最底层，chainID的计算公式为：chainID(n)=SHA256(chain(n-1) diffID(n))，也就是第n层的chainID根据父层的chainID加上一个空格和当前的diffID，再计算SHA256摘要。
 
@@ -136,16 +141,19 @@ b5e0c75383b6d3a7dc43abebb31431017676f1e4209d4704963f52ce0b32b96b  -
 ├── size
 └── tar-split.json.gz
 ```
+
 - **cache-id**：由宿主机随即生成的一个uuid，与镜像层文件一一对应，指向真正存放 layer 文件的地方；
 ```bash
 # more cache-id 
 9c58547be8d230a221107f2ac644c713eb9b8c820e1a22b351ce3e686b730b1b
 ```
+
 - **diff**：镜像层校验ID、根据该镜像层的打包文件校验获得；
 ```bash
 # more diff
 sha256:885806cf466d56e36824a1623f362349202c6e4e8f7aab64e174519b66484fea
 ```
+
 
 - **parent**：父镜像层的chainID(最底层不含该文件)；
 ```bash
@@ -153,11 +161,13 @@ sha256:885806cf466d56e36824a1623f362349202c6e4e8f7aab64e174519b66484fea
 sha256:6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579
 ```
 
+
 - **size**：当前layer的大小，单位是字节；
 ```bash
 # more size
 16815636
 ```
+
 - **tar-split.json.gz**：layer 压缩包的 split 文件，通过这个文件可以还原 layer 的 tar 包，详情可参考 https://github.com/vbatts/tar-split。
 
 #### 2.3.2 容器可读写层
@@ -177,17 +187,20 @@ CONTAINER ID        IMAGE               COMMAND                  CREATED        
 └── parent
 ```
 
+
 - **init-id**：容器init层的mount-id，指向了layer数据文件目录；
 ```bash
 # more init-id
 c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e-init
 ```
 
+
 - **mount-id**：读写层的mount-id，指向了layer数据文件目录；
 ```bash
 # more mount-id
 c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e
 ```
+
 
 - **parent**：容器层的父镜像层的chainID，对应只读层中的最顶层即第三层。
 ```bash
@@ -232,6 +245,7 @@ chainId为6744ca1b11903f4db4d5e26145f6dd20f9a6d321a7f725f1a0a7a45a4174c579的lay
 └── link
 ```
 
+
 - **diff**：该目录存放了真实的数据；
 - **link**：该文件存放了该层的符号链接名称，该符号链接更短，主要用来避免挂载时超出页面大小的限制，指向diff目录；
 ```bash
@@ -254,6 +268,7 @@ l/7UCN35ON2ZKX3DX5BA2E6NIBNF -> ../367818b00c1569667c3f0eb8b0580c770251612d4ab16
 ├── lower
 └── work
 ```
+
 - 在第二层多了一个lower文件及work目录，其中lower文件内容是所有祖先layer diff目录的短符号链接名称， work 目录则是用来完成如 copy-on_write 的操作。
 ```bash
 # more lower
@@ -273,6 +288,7 @@ c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e-init/
 ├── lower
 └── work
 ```
+
 - lower文件存放了三个只读层的符号链接文件；
 ```bash
 # more lower
@@ -289,11 +305,13 @@ c3deeb4325373415ca2d2043aed5b28c5098169e72b3f25788b1d5eb1b4f420e
 ├── merged
 └── work
 ```
+
 - **lower** ：该文件存放了init层及三个只读层diff目录的短符号链接文件名称；
 - **merged** ：每当启动一个容器时，会将 link 指向的镜像层目录以及 lower 指向的镜像层目录联合挂载到 merged 目录，因此，容器内的视角就是 merged 目录下的内容。
 
 ## 4 结论
 通过镜像文件的元数据信息我们可以找到分层Layer及本地数据文件之间的关联，对理解docker文件系统有很大的帮助：
+
 1. 在本地镜像仓库文件repositories.json找到镜像的imageid，根据imageid找到image的元数据配置文件；
 2. 在image元数据配置文件rootfs元素中找到layer的diffid;
 3. 根据计算公式，将diffid转化为chaninid，chainid即为只读分层元数据文件的目录；

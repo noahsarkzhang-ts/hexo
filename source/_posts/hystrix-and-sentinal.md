@@ -9,6 +9,7 @@ tags:
 - 限流
 - 熔断降级
 categories:
+
 - Springboot
 ---
 
@@ -19,6 +20,7 @@ categories:
 ## 概述
 
 Hystrix 和 Sentinal 可以认为解决的是同一类问题，即保护系统在可受控的情况下运行，使得系统有足够的弹性。但它们的实现方式有较大的差异：
+
 - Hystrix: 通过隔离（线程或信号量）将不同的资源请求分隔到不同的资源池中进行访问，不同资源池之间互不影响，从而将故障限定的特定的资源池中，不影响其它资源的访问；
 - Sentinal: 通过流控的方式，如控制资源请求的 QPS, 使得请求控制在合理的范围内，从而达到资源隔离的效果。
 
@@ -101,6 +103,7 @@ public class RemoteServiceTestCommand extends HystrixCommand<String> {
 ```
 
 它有如下特点：
+
 - 将远程方法的请求包装成一个 Command 对象，该对象中持有一个线程池，异步去访问远程方法；
 - 可以为每一个请求设置超时时间，而不依赖于第三方调用，超时时间由额外的调度线程来触发；
 - 可以设置隔离级别的类型：线程和信号量；
@@ -109,10 +112,10 @@ public class RemoteServiceTestCommand extends HystrixCommand<String> {
 - 可以根据需要设置断路器的参数，如错误率，请求的最小阈值及休眠时间等等。
 
 ### 整体流程
-
 ![hystrix-command-flow-chart](/images/spring-cloud/hystrix-command-flow-chart.png "hystrix-command-flow-chart")
 
 整体流程如下：
+
 1. 将远程方法包装成 `HystrixCommand` 或 `HystrixObservableCommand` 对象；
 2. 执行 Command 对象, 有四个方法可以执行：1) execute(): 同步方法调用; 2) queue(): 异步方法调用 ; 3) observe(): 响应式编程，返回 Observable 对象; 4) toObservable(): 跟3) 类似; 前三个方法最终会转换为第 4）个方法；
 3. 判断响应结果是否有缓存，若有，直接返回；
@@ -129,16 +132,17 @@ public class RemoteServiceTestCommand extends HystrixCommand<String> {
 ### 隔离级别
 
 在 Hystrix 中，使用两种隔离级别来保护单一模块故障不会扩散到其它模块，它们分别是：线程和信号量模式，两者之间的模式如下所示：
-
 ![isolation-options-1280](/images/spring-cloud/isolation-options-1280.png "isolation-options-1280")
 
 **线程模式的特点：**
+
 - 请求线程和调用线程(Hystrix 线程) 不是同一个线程，对远程方法的调用不会阻塞请求线程；
 - 每一个请求都会独立的线程池资源，一个请求有故障不会影响到其它请求，可以实现真正的资源隔离；
 - 可以方便设置请求执行的超时时间，不依赖第三方组件；
 - 该种模式下，会增大调用的开销，如线程上下文的切换。
 
 **信号量模式的特点：**
+
 - 请求线程和调用线程在同个线程下，不存在程上下文的切换，比较轻量级；
 - 通过请求的 QPS 或 线程数来实现资源的隔离；
 - 不能设置请求执行的超时时间，需要依赖第三方调用组件；
@@ -148,10 +152,10 @@ public class RemoteServiceTestCommand extends HystrixCommand<String> {
 ### 断路器
 
 资源隔离之后，结合断路器，可以根据错误率执行降级操作（返回默认值），并自我探测故障是否恢复，完成状态的转换。
-
 ![circuit-breaker-1280](/images/spring-cloud/circuit-breaker-1280.png "circuit-breaker-1280")
 
 工作原理如下：
+
 1. 假定一个周期的请求量达到了阈值(HystrixCommandProperties.circuitBreakerRequestVolumeThreshold());
 2. 且错误比率超过了阈值(HystrixCommandProperties.circuitBreakerErrorThresholdPercentage());
 3. 断路器状态从 `CLOSED` 转换为 `OPEN`;
@@ -220,6 +224,7 @@ public class SentinelDemo {
 ```
 
 它有如下的特点：
+
 - 被保护的地方可以是一个接口，也可以是一个代码块，并被赋予一个“资源名称”；
 - 可以根据资源名称添加不同的规则，如流控及降级规则；
 
@@ -237,11 +242,11 @@ public class SentinelDemo {
 **流量控制**
 
 流量控制在网络传输中是一个常用的概念，它用于调整网络包的发送数据。然而，从系统稳定性角度考虑，在处理请求的速度上，也有非常多的讲究。任意时间到来的请求往往是随机不可控的，而系统的处理能力是有限的。我们需要根据系统的处理能力对流量进行控制。Sentinel 作为一个调配器，可以根据需要把随机的请求调整成合适的形状。
-
 ![sentinel-flow-overview](/images/spring-cloud/sentinel-flow-overview.jpg "sentinel-flow-overview")
 
 
 流量控制有以下几个角度:
+
 - 资源的调用关系，例如资源的调用链路，资源和资源之间的关系；
 - 运行指标，例如 QPS、线程池、系统负载等；
 - 控制的效果，例如直接限流、冷启动、排队等。
@@ -258,6 +263,7 @@ Sentinel 同时提供系统维度的自适应保护能力。防止雪崩，是�
 
 ### 工作机制
 Sentinel 的主要工作机制如下：
+
 - 对主流框架提供适配或者显示的 API，来定义需要保护的资源，并提供设施对资源进行实时统计和调用链路分析。
 - 根据预设的规则，结合对资源的实时统计信息，对流量进行控制。同时，Sentinel 提供开放的接口，方便您定义及改变规则。
 - Sentinel 提供实时的监控系统，方便您快速了解目前系统的状态。
@@ -268,6 +274,7 @@ Sentinel 的主要工作机制如下：
 ![sentinel-slot-chain-architecture](/images/spring-cloud/sentinel-slot-chain-architecture.png "sentinel-slot-chain-architecture")
 
 这些插槽有不同的职责：
+
 - NodeSelectorSlot: 负责收集资源的路径，并将这些资源的调用路径，以树状结构存储起来，用于根据调用路径来限流降级；
 - ClusterBuilderSlot: 用于存储资源的统计信息以及调用者信息，例如该资源的 RT, QPS, thread count 等等，这些信息将用作为多维度限流，降级的依据；
 - StatisticSlot: 用于记录、统计不同纬度的 runtime 指标监控信息；

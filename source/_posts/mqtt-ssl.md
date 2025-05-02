@@ -5,6 +5,7 @@ updated: 2023-02-18 09:47:38
 tags:
 - ssl
 categories:
+
 - MQTT
 ---
 
@@ -19,6 +20,7 @@ categories:
 ### KeyStore
 `KeyStore`,一个存储密钥及证书的存储设备或数据库，它用于证明服务器及客户端身份。 KeyStore 的形态可以是一个文件，也可以是一个物理设备，它可以存储三种类型的条目，根据 `KeyStore` 类型的不同，存储的条目可能不一样。 
 三种类型的条目如下：
+
 - 私钥：存储非对称算法的私钥，处于安全的考虑，访问该条目，需要提供密码；
 - 证书：证书包含一个公钥及签名，用于验证服务器或客户端的身份；
 - 密钥：存储对称算法的加密密钥。
@@ -28,6 +30,7 @@ categories:
 
 **2. KeyStore 类型**
 根据存储的条目类型及存储方式，在 `Java` 中，`KeyStore` 有一些不同的类型：`JKS`, `JCEKS`, `PKCS12`, `PKCS11`, `DKS`.
+
 - JKS: `Java Key Store` 的首字母简写，它的实现类是 `sun.security.provider.JavaKeyStore`. `JKS` 是与 `Java` 语言相关的 `KeyStore`，不能被其它语言使用。它可以存储私钥和证书，但不能存储对称密钥，另外，它的私钥在 `Java` 中不能被提取；
 - JCEKS: `JCE key store(Java Cryptography Extension KeyStore)`, 它是 `JKS `的一个超集，包含了更多的算法支持，实现类是 `com.sun.crypto.provider.JceKeyStore`. `JCEKS` 可以存储私钥，证书和密钥三种类型的条目，它使用 `Triple DES` 加密算法对私钥存储进行了加强保护。`JCEKS` 由 `SunJCE` 提供，于 `Java 1.4` 版本中引入，在 `Java 1.4` 之前的版本中，只有 `JKS` 可用；
 - PKCS12: 这是一种标准的 `KeyStore`，可以被 `Java` 或其它语言使用，它扩展了 `p12 or pfx`, 其实现类是 `sun.security.pkcs12.PKCS12KeyStore`. `PKCS12` 也可以存储三种类型的条目，不同于 `JKS`，它的私钥可以被其它语言如 C, C++ or C# 提取。另外，在 Java 9 版本之前默认的 `KeyStore` 是 `JKS`, Java 9 之后改为 `JCEKS`. 可以在 `$JRE/lib/security/java.security` 中查看默认的 `KeyStore`; 
@@ -41,6 +44,7 @@ categories:
 
 ### 证书类型
 常用的证书包括如下类型:
+
 - DER,CER：文件是二进制格式，只保存证书，不保存私钥，用于 Java 和 Windows 服务器中；
 - PEM：一般是文本格式，可保存证书和私钥，分别使用两个文件保存，用于 Nginx 或 Apache 中；
 - CRT: 文件可以是二进制格式，也可以是文本格式，与 DER 格式相同，不保存私钥；
@@ -49,6 +53,7 @@ categories:
 
 ### keytool
 `keytool` 是 `JDK` 提供的一个管理 `KeyStore` 工具，常用的命令包括：
+
 - genkeypair: 生成非对称算法的公私钥密码对；
 - exportcert: 导出证书；
 - importcert: 导入证书；
@@ -66,6 +71,7 @@ categories:
 -keypass: 访问 key 的密码；
 -storetype: KeyStore 类型，如：jks,jceks,pkcs12.
 ```
+
 
 > For the -keypass option, if you do not specify the option on the command line, then the keytool command first attempts to use the keystore password to recover the private/secret key. If this attempt fails, then the keytool command prompts you for the private/secret key password.
 
@@ -132,6 +138,7 @@ $ keytool -list -v -keystore ./server_ks -storepass 123456 -storetype jks
 ## 双向认证实例
 
 现在有这样一个场景，Client 和 Server 通过 SSL 通信且需要双向认证，双向认证是指 Client 和 Server 两端都要验证对方的证书。完成这个场景需要如下步骤（使用自签名证书）：
+
 1. 生成 Client 和 Server 端公私钥对；
 2. 导出各自的证书，并导入到对方的 `TrustKeyStore` 中；
 3. 将 `KeyStore` 加载到程序中，初始化 `SSLContext` 对象，并生成对应的 `Socket` 对象，完成通信。

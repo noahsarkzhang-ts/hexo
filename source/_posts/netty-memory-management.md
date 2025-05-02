@@ -8,14 +8,15 @@ tags:
 - slab
 - jemalloc
 categories:
+
 - Netty
 ---
 
 ## 1.概述
 
 在操作系统中内存管理的基本单位是 page, page 大小一般是 4k。为了满足不同场景，分配不同大小的内存，操作系统提供了丰富的内存管理方法。从分层的角度来说，可以用下面的层次图来表示。
-
 ![netty-memory-management-level](/images/netty/netty-memory-management-level.jpg "renetty-memory-management-levelactor")
+
 
 1. 在内核空间，Buddy 系统提供了 page 级的内存分配，可以实现较大连续内存的分配，最小的分配单位是 page；
 2. 在内核空间，Buddy 最小分配单位是 4k ,即一个 page。为了避免内存空间的浪费（小于 4K 的空间也会分配一个 page），slab 提供了小内存空间的分配机制；
@@ -23,9 +24,12 @@ categories:
 
 <!-- more -->
 
+
 > ptmalloc 是基于 glibc 实现的内存分配器，它是一个标准实现，所以兼容性较好。pt 表示 per thread 的意思。 ptmalloc 在多线程的性能优化上下了很多功夫。不过由于过于考虑性能问题，多线程之间内存无法实现共享，每个线程都独立使用各自的内存，所以在内存开销上是有很大浪费的。
 
+
 > tcmalloc 出身于 Google，全称是 thread-caching malloc，所以 tcmalloc 最大的特点是带有线程缓存，tcmalloc 非常出名，目前在 Chrome、Safari 等知名产品中都有所应有。tcmalloc 为每个线程分配了一个局部缓存，对于小对象的分配，可以直接由线程局部缓存来完成，对于大对象的分配场景，tcmalloc 尝试采用自旋锁来减少多线程的锁竞争问题。
+
 
 > jemalloc 是由 Jason Evans 在 FreeBSD 项目中引入的新一代内存分配器。它是一个通用的 malloc 实现，侧重于减少内存碎片和提升高并发场景下内存的分配效率，其目标是能够替代 malloc。jemalloc 应用十分广泛，在 Firefox、Redis、Rust、Netty 等出名的产品或者编程语言中都有大量使用。
 > jemalloc 借鉴了 tcmalloc 优秀的设计思路，所以在架构设计方面两者有很多相似之处，同样都包含 thread cache 的特性。但是 jemalloc 在设计上比 ptmalloc 和 tcmalloc 都要复杂，jemalloc 将内存分配粒度划分为 Small、Large、Huge 三个分类，并记录了很多 meta 数据，所以在空间占用上要略多于 tcmalloc，不过在大内存分配的场景，jemalloc 的内存碎片要少于 tcmalloc。
@@ -34,12 +38,12 @@ categories:
 
 ## 2. Buddy 系统
 
+
 > page：虚拟地址空间按照固定大小划分成被称为页（page）的若干单元，物理内存中对应的则是页框（page frame）。这两者一般来说是一样的大小，如 4KB，在本文中，我们统一用 page 表示分页。
 
 在内存管理中，存在两种碎片，一种是内部碎片，另外一种是外部碎片。page 是操作系统中内存分配的基本单元，如果分配的对象小于 page 的大小，就会造成 page 尾部空间的浪费，形成内部碎片。而外部碎片主要是指空闲的 page 不连续，造成可用的空间不能满足大内存的分配，形成外部碎片。
 
 Buddy 系统主要解决了外部碎片的问题，它把所有的空闲 page 分组为 11 个块链表，每个块链表由不同大小的内存块组成，大小分别为1，2，4，8，16，32，64，128，256，512 和 1024个 连续 page 的 page 块。最大可以申请 1024 个连续 page，对应 4MB 大小的连续内存。如下图所示：
-
 ![buddy-system](/images/netty/buddy-system.jpg "buddy-system")
 
 假设要申请一个256个 page 的块，先从 256 个 page 的链表中查找空闲块，如果没有，就去 512 个 page 的链表中找，找到了则将页框块分为 2 个 256 个 page 的块，一个分配给应用，另外一个移到 256个 page 的链表中。如果 512 个 page 的链表中仍没有空闲块，继续向 1024 个 page 的链表查找，如果仍然没有，则返回错误。page 块在释放时，会主动将两个连续的 page 块合并为一个较大的 page 块。
@@ -49,10 +53,10 @@ buddy（伙伴）系统的含义就是不断合并相邻的 page，通过这种�
 ## 3. slab
 
 在Linux中，buddy system（伙伴系统）是以 page 为单位管理和分配内存。page 默认大小为 4K，如果要分配 20 Bytes 大小的内存，就会造成很大的浪费，怎么解决这个问题呢？ slab 分配器就应运而生了，专为小内存分配而生。slab分配器分配内存以 Byte 为单位。但是 slab 分配器并没有脱离伙伴系统，而是基于伙伴系统分配的大内存进一步细分成小内存分配。先看下图：
-
 ![slab](/images/netty/slab.jpg "slab")
 
 kmem_cache 是一个 cache_chain 的链表，描述了一个高速缓存，每个高速缓存包含了一个 slabs 的列表，这通常是一段连续的内存块。存在 3 种 slab：
+
 
 1. slabs_full(完全分配的slab)
 2. slabs_partial(部分分配的slab)
@@ -121,6 +125,7 @@ jemalloc 是一种通用的内存管理方法， 着重于减少内存碎片和�
 ![jemalloc](/images/netty/jemalloc.jpg "jemalloc")
 
 jemalloc 将申请的内存分为三个等级：small, large, huge.
+
 1. Small objects 的 size 以 8, 16, 32, 64, 128, 256, 512 Bytes 分隔开，小于 page 大小；
 2. Large objects的 size 以 page 为单位，等差间隔排列，小于 chunk 的大小； 
 3. Huge objects的大小是 chunk 大小的整数倍。
@@ -140,6 +145,7 @@ small objects 和 large objects 由 arena 来管理， huge objects 由线程间
 | Huge  | 4 MiB |	[4 MiB, 8 MiB, 12 MiB, …]           |
 
 jemalloc 中有几个比较重要的对象，分别是：arena, chunk, bin, run 及 tcache.
+
 1. arena: 为了减少线程间的竞争，jemalloc 将虚拟内存内存分为一定数量的 arenas。每个用户线程都会被绑定到一个 arena 上，线程采用 round-robin 轮询的方式选择可用的 arena 进行内存分配，默认每个 CPU 会分配 4 个 arena;
 2. chunk: arena 由多个 chunk 组成，chunk 的大小为 2 的 k 次方，大于 page 大小。 chunk 的地址与 chunk 大小的整数倍对齐，这样可以通过指针操作在常量时间内找到分配 small/large objects 的元数据, 在对数时间内定位到分配 huge objects的元数据;
 3. bin: bin 代表了相同大小对象的集合，在其大小范围内的对象就由它分配，Small objects 的分配就是通过 bin 分配的;
@@ -154,6 +160,7 @@ jemalloc 采用多级内存分配，引入线程缓存 tcache, arena 来减少�
 ![jemalloc_alloc_mem](/images/netty/jemalloc_alloc_mem.png "jemalloc_alloc_mem")
 
 如图所示， jemalloc 的内存管理采用层级架构，分别是线程缓存 tcache, arena 和系统内存，不同大小的内存块对应不同的分配区。每个线程对应一tcache, 负责当前线程使用内存块的快速申请和释放， 避免线程间锁的竞争和同步。arena 的具体结构在前文已经提到，采用内存池的思想对内存区域进行合理的划分和管理，在有效保证低内存碎片的情况下实现不同大小内存块的高效管理。 system memory 是系统的内存区域。
+
 1. small object: 当 jemalloc 支持 tcache 时， small object 的分配从 tcache 开始， tcache 不中则从 arena 申请 run 并将剩余区域缓存到 tcache， 若从 aren a中不能分配再从 system memory 中申请chunk 加入 arena 进行管理, 不支持 tcache 时， 则直接从 arena 中申请。
 2. large object: 当 jemalloc 支持 tcache 时， 如果 large object 的 size 小于 tcache_maxclass，则从 tcache 开始分配， tcache 不中则从 arena 申请, 只申请需要的内存块， 不做多余 cache, 若从arena 中不能分配则从 system memory 中申请。当 large object 的 size 大于 tcache_maxclas s或者 jemmalloc 不支持 tcache 时， 直接从 arena 中申请。
 3. huge object: huge object 的内存不归 arena 管理， 直接采用 mmap 从 system memory 中申请并由一棵与 arena 独立的红黑树进行管理。

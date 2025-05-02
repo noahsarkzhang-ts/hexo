@@ -11,6 +11,7 @@ tags:
 - Caching
 - EnableCaching
 categories:
+
 - Springboot
 ---
 
@@ -20,6 +21,7 @@ categories:
 ## 概述
 
 在 Springboot 项目中引入 Redis Cache 包含以下三个步骤：
+
 1. 安装部署 Redis;
 2. 引入相关依赖；
 3. 开启 Cache 功能，并使用 @Cacheable 、@CachePut 、@CacheEvict 、@Caching 等 annotaion 标注需要使用 Cache 的方法；
@@ -78,6 +80,7 @@ public class UserService {
 
 **Spring Cache 本质是在使用缓存的方法上加入一个过滤器，根据方法的输入参数和输出结果生成一个缓存的 Key, 并将返回结果缓存到指定的 Key 上。** 怎么标注要使用缓存的方法呢？ 在 Spring 中引入了如下的 annotation, 它们主要是应用在方法上。
 
+
 - @Cacheable: 主要是用在查询方法上，用于将返回结果缓存到 Cache 中，该 annotation 在方法调用前先判断缓存是否存在，如果存在则直接返回缓存的值；如果缓存不存在，则执行方法，并将返回结果缓存到 Cache 中；
 - @CachePut：用于将返回结果缓存到 Cache 中；
 - @CacheEvict：用于清空指定的缓存，可以通过 beforeInvocation 参数控制执行的时间，若为 true, 则在方法前执行，反之方法后执行；
@@ -85,6 +88,7 @@ public class UserService {
 
 >> 
 Cache 参数配置：
+
 - @CacheConfig：用于配置 Cache 相关参数，如：cacheNames, keyGenerator, cacheManager 和 cacheResolver, 一般配置在类上；
 - @EnableCaching：开启缓存功能，一般放在启动类上；
 
@@ -136,6 +140,7 @@ private Object execute(final CacheOperationInvoker invoker, Method method, Cache
 }
 ```
 主要流程包括：
+
 - 判断是否有 CacheEvict annotation, 若有 CacheEvict，且设置 beforeInvocation 为 true, 则在方法前执行 CacheEvict 操作；
 - 判断是否有 Cacheable annotation, 若有 Cacheable，则直接从 Cache 中读取内容：1) 若缓存命中(存在)且没有 CachePut 操作，则将缓存内容包装成返回结果; 2) 若缓存没有命中，则调用方法，并包装返回结果; 
 - 收集 cachePut 操作， 如果有 cachePut 或 Cacheable 未命中，则执行写入缓存操作；
@@ -258,6 +263,7 @@ public class UserService {
 ```
 
 说明：
+
 - @Cacheable,@CachePut annotation 的方法签名必须有返回结果；
 - Redis 使用 String 格式存储数据，完整的 key 为：users::#id, id 为具体的值；
 

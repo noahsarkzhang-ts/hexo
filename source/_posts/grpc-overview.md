@@ -6,6 +6,7 @@ tags:
 - grpc
 - http2
 categories:
+
 - RPC
 ---
 
@@ -15,8 +16,10 @@ categories:
 
 ## 概述
 Wikipiedia 对 gRPC 的描述：
+
 > gRPC (gRPC Remote Procedure Calls[1]) 是 Google 发起的一个开源远程过程调用 (Remote procedure call) 系统。该系统基于 HTTP/2 协议传输，使用 Protocol Buffers 作为接口描述语言。
 提供的功能有：
+
 - 认证（ authentication）;
 - 双向流（bidirectional streaming）;
 - 流控制（flow control）;
@@ -144,6 +147,7 @@ gRPC 使用的版本是 1.41.0
 ### 定义接口文件
 
 接口文件使用 Protocol Buffers 定义，在这里定义了一个 Greeter 服务，它提供了 gRPC 支持的四种通信模式：
+
 1. SayHello, 实现 request-response 模式；
 2. LotsOfReplies, 实现 request-stream 模式；
 3. LotsOfGreetings, 实现 stream-response 模式；
@@ -199,6 +203,7 @@ public interface StreamObserver<V> {
 }
 ```
 其中：
+
 - onNext: 接收或发送下一个数据；
 - onError: 接收或发送一个异常；
 - onCompleted: 结束流操作。
@@ -501,18 +506,15 @@ HTTP 内容比较多，每一次版本升级的特性也比较多，我们在这
 
 **HTTP 1.1**
 在 HTTP 1.1 协议中，一个 TCP 连接可以被多个 HTTP 请求共享，这些请求是按序发送，下一个请求必须在上一个请求收到响应之后才能发送，如下图所示：
-
 ![http1.1](/images/rpc/http1.1.jpg "http1.1")
 
 为了提高发送的效率，HTTP 1.1 引入了“管道”技术，可以并行地发送多个 HTTP 请求，而不用等待上一个请求的响应。但响应结果仍然是有序的，即上一个请求的响应发送之后，才能发送下一个请求的响应。这就引发了 HTTP 的队头阻塞（head-of-line blocking）问题，上一个请求的响应会影响后续的响应。如果前一个请求的结果比较大，就会阻塞后续请求的响应。
 
 **HTTP 2.0**
 HTTP 2.0 为了解决 HTTP 队头阻塞的问题，引入了 stream 的概念。将一个 TCP 连接逻辑划分为多个 stream，每一个 stream 可独立负责一个 HTTP 请求，这些 stream 之间，1）可并行交错地发送多个请求，请求之间互不影响；2）可并行交错地发送多个响应，响应之间互不干扰；3）使用一个连接并行发送多个请求和响应。如下图所示：
-
 ![http2-multiplexing](/images/rpc/http2-multiplexing.svg "http2-multiplexing")
 
 HTTP 2.0 解决了 HTTP 队头阻塞的问题，但由于 HTTP 2.0 底层传输协议仍然是 TCP 协议，TCP 协议本身也有队头阻塞（head-of-line blocking）问题，其主要原因是数据包超时确认或丢失阻塞了滑动窗口向右滑动，阻塞了后续数据的发送，如下图所示：
-
 ![tcp-sliding-window-v1](/images/rpc/tcp-sliding-window-v1.jpg "tcp-sliding-window-v1")
 
 未收到 ACK 确认的消息将会占用滑动窗口，压缩了可发送窗口的大小。
@@ -525,26 +527,27 @@ HTTP 2.0 解决了 HTTP 队头阻塞的问题，但由于 HTTP 2.0 底层传输�
 ![binary_framing_layer01](/images/rpc/binary_framing_layer01.svg "binary_framing_layer01")
 
 在 HTTP2 中有三个重要的概念：
+
 - 数据流(stream): 已建立的连接内的双向字节流，可以承载一条或多条消息；
 - 消息(message): 与逻辑请求或响应消息对应的完整的一系列帧；
 - 帧(frame):HTTP2 通信的最小单位，每个帧都包含帧头，至少也会标识出当前帧所属的数据流。
 
 它们之间的关系如下：
+
 - 所有通信都在一个 TCP 连接上完成，此连接可以承载任意数量的双向数据流；
 - 每个数据流都有一个唯一的标识符和可选的优先级信息，用于承载双向消息；
 - 每条消息都是一条逻辑 HTTP 消息（例如请求或响应），包含一个或多个帧；
 - 帧是最小的通信单位，承载着特定类型的数据，例如 HTTP 标头、消息负载等等。 来自不同数据流的帧可以交错发送，然后再根据每个帧头的数据流标识符重新组装。
-
 ![streams_messages_frames01](/images/rpc/streams_messages_frames01.svg "streams_messages_frames01")
 
 在一个 TCP 连接上承载了不同的 HTTP 请求，互不干扰。
 
 **二进制帧协议**
 一个二进制帧包括两个部分，一个是 8 字节的首部，其中包含帧的长度、类型、标志，还有一个保留位和一个31位的流标识符；另外一部分是实际传输的数据，如下图所示：
-
 ![http2-binary-frame-format.](/images/rpc/http2-binary-frame-format.png "http2-binary-frame-format")
 
 首部的定义如下：
+
 - 16 位的长度意味着一帧可以携带最大 64 KB 的数据，不包括 8 字节首部；
 - 8 位的类型字段决定如何解释帧的内容；
 - 8 位的标志位字段允许不同的帧类型定义特定于帧的消息标志，<strong><font color='red'>流的结束可以通过标志位来表示</font></strong>；
@@ -552,6 +555,7 @@ HTTP 2.0 解决了 HTTP 队头阻塞的问题，但由于 HTTP 2.0 底层传输�
 - 31 位的流标识字段唯一标识 HTTP 2.0 的流。
 
 其中帧类型可以分为：
+
 - DATA：用于传输 HTTP 消息体；
 - HEADERS：用于传输 HTTP header；
 - SETTINGS：用于约定客户端和服务端的配置数据；

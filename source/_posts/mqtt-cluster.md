@@ -6,6 +6,7 @@ tags:
 - 集群
 - 消息路由
 categories:
+
 - MQTT
 ---
 
@@ -16,6 +17,7 @@ categories:
 ## 概述
 
 要实现集群间消息的传递，一般有三种方式：
+
 1. 借助消息中间件，如 RocketMQ, 将 `MQTT` 中的 `Topic` 映射到 `MQ` 中间件的对等实体上，如 `Queue`, 消息的传递从而转化为 `MQ` 中间件消息的订阅；
 2. 借助数据库，如 Mysql, 将消息写入到数据库中，`MQTT broker` 定期获取这些消息，从而实现消息的传递；
 3. Broker 间互联通信，每一个 Broker 节点都与其它结点建立 Tcp 连接，消息通过 TCP 连接广播出去，也可借助第三方组件来实现该功能，如 JGroups.
@@ -27,10 +29,10 @@ categories:
 ## 集群方案
 
 该方案的本质是建立一个连接所有结点的通信网络，每一个结点既是服务器也是客户端，如下图所示：
-
 ![mqtt-cluster](/images/mqtt/mqtt-cluster.jpg "mqtt-cluster")
 
 该通信网络有如下特点：
+
 1. 每一结点与其它节点都建立一个 `Tcp` 连接，如果有 `n` 个结点，则其中一结点要与其它所有的结点建立 `n-1 TCP` 条连接；
 2. 相同结点之间共享一个连接，如 `Server 1,Server 2` 两个结点，`Server 1-> Server 2`, `Server 2-> Server 1` 使用同一个 `TCP` 连接；
 3. 整个网络总共有 `n*(n-1)/2` 条 `TCP` 连接；

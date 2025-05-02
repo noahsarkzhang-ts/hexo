@@ -6,6 +6,7 @@ tags:
 - hexo 升级
 - next 升级
 categories:
+
 - 博客
 ---
 
@@ -87,6 +88,7 @@ source
 ```
 
 **说明：**
+
 - _posts: 存放博客 md 文件；
 - about: 存放 “关于” 菜单首页文件；
 - categories: 存放 “分类” 菜单首页文件；

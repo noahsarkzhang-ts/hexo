@@ -7,6 +7,7 @@ tags:
 - Feign
 - RestTemplate
 categories:
+
 - Springboot
 ---
 
@@ -73,6 +74,7 @@ public <T> T execute(String serviceId, LoadBalancerRequest<T> request, Object hi
 
 使用 Feign, 需要两步操作。
 
+
 - 定义 Feing 接口
 
 使用 `FeignClient` 定义一个接口，Feign 为其实现一个代理类，将其添加到 Spring 容器中。客户端使用 `@Autowired` 注入即可。
@@ -91,6 +93,7 @@ public interface UserFeignClient {
     Result<UserDTO> query();
 }
 ```
+
 
 - 开启 `EnableFeignClients`
 
@@ -173,8 +176,8 @@ public Object getObject() throws Exception {
 ```
 
 工程整体结构如下：
-
 ![springcloud-rpc](/images/spring-cloud/springcloud-rpc.jpg "springcloud-rpc")
+
 
 - 使用 Nacos 作为注册中心；
 - rpc-service-provider 作为服务提供方，将服务到 Nacos 中；
@@ -467,6 +470,7 @@ spring:
 ## 总结
 
 `Feign` 和 `RestTemplate` 两种方式以下面的特点：
+
 1. `RestTemplate` 只需要通过添加 `@LoadBalanced` annotation 便可实现负载均衡的功能；
 2. `RestTemplate` 的使用方式与常规的方式一样，只需要将服务地址改为服务名称即可；
 3. `Feign` 需要申明客户端接口，通过代码生成技术实现代理类；

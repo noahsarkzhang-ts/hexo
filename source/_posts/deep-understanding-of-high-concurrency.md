@@ -8,13 +8,13 @@ tags:
 - 高可用
 - 高扩展
 categories:
+
 - 架构
 ---
 
 这篇文章是对《高并发，你真的理解透彻了吗？》的记录及整理。
 
 <!-- more -->
-
 ![high-concurrency](/images/high-concurrency/high-concurrency.jpeg "high-concurrency")
 
 

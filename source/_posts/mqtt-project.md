@@ -6,6 +6,7 @@ tags:
 - 工程结构
 - 代码目录
 categories:
+
 - MQTT
 ---
 
@@ -29,6 +30,7 @@ Alligator mqtt broker
 ```
 
 **说明：**
+
 - transport: 通信层，用于处理网络请求，解析 MQTT 网络协议，建立于客户端的连接；
 - protocol: 协议层，处理 MQTT 业务逻辑；
 - clusters: 集群通信层，用于集群间消息的传递；
@@ -54,6 +56,7 @@ transport
 ```
 
 **说明：**
+
 - config: 存放通信配置相关的类；
 - exception: 存放通信异常的类；
 - handler: 存放 Netty 消息处理类，包括日志、超时、异常处理逻辑；
@@ -89,6 +92,7 @@ protocol
 ```
 
 **说明：**
+
 - entity: 存放相关的实体类；
 - processor: 协议处理目录，存放了所有 MQTT 消息类型的处理类；
 - security: 存放安全相关的类；
@@ -120,6 +124,7 @@ clusters
 ```
 
 **说明：**
+
 - entity: 存放集群通信相关的类；
 - processor: 存放集群消息的处理类，每一个集群消息对应一个处理类；
 - serializer: 存放消息序列化相关的类；
@@ -154,6 +159,7 @@ repository
 ```
 
 **说明：**
+
 - entity: 存放持久化相关的类；
 - factory：存放对象工厂相关的类，用于加载不同类型的 Repository 对象；
 - memory: 存放内存版本的 Repository 对象；
@@ -185,6 +191,7 @@ common
 ```
 
 **说明：**
+
 - exception: 存放公共异常类；
 - factory: 存放 SPI 服务加载相关类；
 - redis: Redis 相关的类；

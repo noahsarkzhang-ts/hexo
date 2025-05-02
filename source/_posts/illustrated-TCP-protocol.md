@@ -11,6 +11,7 @@ tags:
 - 报文发送
 - 报文接收
 categories: 
+
 - 网络协议
 ---
 
@@ -20,8 +21,8 @@ categories:
 
 ## 1. 网络子系统
 从网络中发送过来的网络报文首先到达网卡 NIC，使用 DMA 技术将报文拷贝到内存中，再发起中断请求 CPU 进行中断处理，CPU 调用驱动中的方法处理网络报文，处理完毕之后传给网络协议栈处理，如流程如下图所示：
-
 ![data-received](/images/tcp/data-received.jpg "data-received")
+
 1. 网卡 NIC 从外部网络收到报文；
 2. 网卡 NIC 通过 DMA 技术直接将报文拷贝到 RAM 中，以 SKB(Socket Buffer)结构存储。NIC 一般都会在 RAM 中申请一个环形的接收队列，代表了接收的能力（同时也会发送环形队列，用于报文的发送）；
 3. 网卡 NIC 向 CPU 触发一次硬件中断，通知有报文需要处理，如果只有一个 CPU，没有其它选择；如果是多 CPU 的情况，会涉及到 CPU 的选择，后面我们会进行讲述；
@@ -36,6 +37,7 @@ categories:
 
 系统在启动时，会为每一个 CPU 分配一个内核线程 ksoftirqd 线程，专门处理软件中断，目前能够处理的软件中断有6个，其中网络处理的有两个，分别是接收中断 NET_RX_SOFTIRQ 和 发送中断 NET_TX_SOFTIRQ。这两个中断在net_dev_init方法中注册到内核。初始化的流程如下所示：
 ![softirq](/images/tcp/softirq.jpg "softirq")
+
 1. 系统启动时，创建 ksoftirad 内核线程，处理软件中断，每一个 CPU 对应一个线程；
 2. ksoftirqd 内部是一个事件处理处理函数 run_ksoftirqd，不断接收中断处理事件；
 3. 驱动为每一个 CPU 生成 poll_list 链表，主要是存放触发中断事件的 NIC设备；
@@ -48,6 +50,7 @@ categories:
 ### 1.2 RSS
 在多核的系统中，为了充分利用多核处理的优势，提高网络处理的吞吐量，NIC 引入了 RSS(Receive Side Scaling) 或 multiqueue 的技术。这种技术将 NIC 接收队列抽象为多个队列，每一个队列分配一个唯一的中断号，再将队列与某个 CPU 建立映射关系。输入的报文根据 NIC中的 hash 函数（根据Src ip, Src port, Dest ip, Dest port, Protocol）负载到指定的接收队列中，再根据对应的中断号触发硬件中断，后续的报文者将由指定的 CPU 来处理，整体的流程如下图所示：
 ![RSS](/images/tcp/RSS.jpg "RSS")
+
 1. NIC 接收到外部报文；
 2. 使用 DMA 技术将报文拷贝到 SKB 双向链表中；
 3. 使用 hash 函数，将该报文负载到指定的队列中，将触发中断，每一个接收队列都对应一个环形队列，有大小的限制，超过容量之后，报文会丢弃；
@@ -84,7 +87,6 @@ TX:             512
 ```
 
 在 NIC 中引入 RSS 技术，有效地提高了网络处理的吞吐量。如果硬件不支持 RSS 技术，内核提供了 RPS(Receive Packet Steering) 技术，通过软件的技术来实现多核处理网络报文。PRS 技术的原理是：硬件中断只由一个 CPU 处理，然后根据报文计算 hash 值并负载到特定的 CPU 上，通过 Inter-processor Interrupt(IPI) 通知特定的 CPU 来进行软件中断处理。 Receive Flow Steering(RFS) 一般和 RPS 配合一起工作。RPS 是将收到的报文分配到不同的 CPU 以实现负载均衡，保证同一个 Flow 的数据包都由一个 CPU 处理，类似会话绑定的技术。
-
 ![RPS](/images/tcp/RPS.jpg "RPS")
 
 可以通过 /proc/sys/net/core/netdev_max_backlog 查看 netdev_max_backlog 的默认值。
@@ -97,6 +99,7 @@ $ cat /proc/sys/net/core/netdev_max_backlog
 上面的内容讲述了硬件中断的相关内容，接下来进入软件中断的处理流程，其流程（以NAPI为例）如下所示：
 ![net-rx-action](/images/tcp/net-rx-action.jpg "net-rx-action")
 net_rx_action 函数处理当前 CPU 中设备列表中的设备( NAPI poll structure)，这些设备主要来自两个地方：1）驱动中调用 napi_schedule 方法加入；2）使用 Inter-processor Interrupt 方法加入（RPS），具体流程如下：
+
 1. 遍历当前 CPU 的设备列表 poll_list，处理所有的 NAPI 设备；
 2. 检查 budget 及软件中断的运行时间，避免处理函数占用过多的 CPU 时间，控制 budget 可以影响执行的时间，它可以通过 net.core.netdev_budget 参数进行配置；
 3. 调用驱动中注册的 poll函数，在 igb 驱动中调用的是 igb_poll 函数；
@@ -107,6 +110,7 @@ net_rx_action 函数处理当前 CPU 中设备列表中的设备( NAPI poll stru
 在 netif_receive_skb 方法中，会根据是否开启 RPS 来进行不同处理，如果开启了 RPS，会使用 IRI (Inter-processor Interrupt )技术，将报文转给远程 CPU 进行处理，实现类似硬件 RSS 的技术；如果未开启，除了将报文分发给 taps(PCAP), 实现抓包功能，同时将报文传给 IP 协议层，由 IP 协议进行下一步处理，其流程如下所示：
 ![netif-receive-skb](/images/tcp/netif-receive-skb.jpg "netif-receive-skb")
 开启 RPS 功能：
+
 1. 将报文传给 enqueue_to_backlog 方法；
 2. 报文加入到远程 CPU 的输入队列中；
 3. 将 NIC 加入到远程 CPU 的设备列表中，使用 IRI, 触发过程 CPU 的软件中断；
@@ -116,6 +120,7 @@ net_rx_action 函数处理当前 CPU 中设备列表中的设备( NAPI poll stru
 7. 将报文传给 IP 协议层，进行下一步处理。
 
 未开启 RPS 功能：
+
 1. 将报文传给 __net_receive_skb_core 方法；
 2. 将报文分发给 taps(PCAP), 实现抓包功能；
 3. 将报文传给 IP 协议层，进行下一步处理。
@@ -124,6 +129,7 @@ net_rx_action 函数处理当前 CPU 中设备列表中的设备( NAPI poll stru
 IP 协议层主要是实现路由功能，结合 netfilter 定义的钩子函数，可以通过 iptables 配置 ip 路由功能，流程如下所示：
 ![ip-rcv](/images/tcp/ip-rcv.jpg "ip-rcv")
 在这里有三个 netfilter 钩子函数：
+
 1. NF_INET_PRE_ROUTING：可以在路由前对数据包进行修改或丢弃；
 2. NF_INET_FORWARD：实现转发功能；
 3. NF_INET_LOCAL_IN：本地 IP 的入口，触发相应的配置。
@@ -133,6 +139,7 @@ IP 协议层主要是实现路由功能，结合 netfilter 定义的钩子函数
 ![tcp-v4-rcv](/images/tcp/tcp-v4-rcv.jpg "tcp-v4-rcv")
 
 4 个队列使用场景：
+
 1. receive queue ：当 socket 没有被线程占用的时候，报文会加入到该队列；
 2. out_of_order queue ：临时存放乱序的报文；
 3. prequeue queue ：当 socket 被占用且 tcp_low_latency 值为 0 时，报文加入该队列；
@@ -151,6 +158,7 @@ IP 协议层主要是实现路由功能，结合 netfilter 定义的钩子函数
 报文发送流程从 TCP 协议层开始，其主要流程如下所示：
 ![tcp-sendmsg](/images/tcp/tcp-sendmsg.jpg "tcp-sendmsg")
 
+
 1. 用户线程调用 send 方法发送用户态的数据；
 2. sk_stream_wait_memory：判断发送队列是否有足够的空间发送数据，如果没有则等待一定时间，等待已经发送数据的 ACK 确认信息，如果收到则释放 SKB 数据，腾出空间以便后续数据的发送。TCP 连接分配的发送缓存是有限的，可以通过（ /proc/sys/net/core/wmem_default ）进行配置；
 3. tcp_sendmsg ：将用户态的数据按照 MSS ( Maximum Segment Size ) 进行分片，并封装到 SKB 结构中。为了避免数据链路层进行分片，TCP 层传输的数据应小于该层的最大传输单元（MTU）,以太网 MTU 为 1500 字节，扣除 TCP, IP 头的 40 个字节，MSS 最大的值为 1460 字节；
@@ -167,11 +175,13 @@ IP 协议层将 IP 转换为 MAC 地址，进行下一跳数据的发送。在�
 ![ip_send_skb](/images/tcp/ip_send_skb.jpg "ip_send_skb")
 
 在发送阶段，同样涉及到 netfilter 钩子函数，包括：
+
 1. NF_INET_LOCAL_OUT ：从本机发出的数据包，在查询路由成功之后，会调用__ip_local_out_sk 函数,首先进行必要字段设置和校验和计算，然后经过 NF_INET_LOCAL_OUT 钩子点，之后会调用 dst_output_sk 继续完成数据包输出的其他工作；
 2. NF_INET_POST_ROUTING ：转发的数据包或者是本地输出的数据包，最后都会经过 ip_output 进行输出，设置设备和协议之后，经过NF_INET_POST_ROUTING 钩子点，之后调用 ip_finish_output 进行后续输出操作，其中包括了分片等
 
 ### 4.3 网络子系统
 ![dev_queue_xmit](/images/tcp/dev_queue_xmit.jpg "dev_queue_xmit")
+
 1. dev_queue_xmit：在该函数中，会先获取设备对应的qdisc，如果没有的话（如loopback或者IP tunnels），就直接调用dev_hard_start_xmit，否则数据包将经过 Traffic Control 模块进行处理；
 2. Traffic Control: 进行一些过滤和优先级处理，在这里，如果队列满了的话，数据包会被丢掉；
 3. dev_hard_start_xmit： 该函数中，首先是拷贝一份 SKB 给 “packet taps” ，tcpdump 就是从这里得到数据的，然后调用 ndo_start_xmit。如果 dev_hard_start_xmit 返回错误的话，则触发软件中断 NET_TX_SOFTIRQ，交给软件中断处理程序 net_tx_action 稍后重试。
@@ -179,6 +189,7 @@ IP 协议层将 IP 转换为 MAC 地址，进行下一跳数据的发送。在�
 
 ### 4.4 驱动
 ndo_start_xmit 调用驱动中的函数，进行数据的发送，其大概的流程如下：
+
 1. 将 SKB 放入网卡自己的发送队列 （环形队列）；
 2. 通知网卡发送数据包；
 3. 网卡发送完成后发送中断给CPU；

@@ -11,6 +11,7 @@ tags:
 - Authentication
 - ConfigAttribute
 categories:
+
 - Springboot
 ---
 
@@ -19,10 +20,10 @@ Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规�
 <!-- more -->
 
 ## 整体流程
-
 ![Authorization](/images/spring-cloud/Authorization.jpg "Authorization")
 
 **授权流程如下：**
+
 1. 用户认证成功之后，会绑定一个 Authentication 对象，一般是 UsernamePasswordAuthenticationToken 对象；
 2. 请求被 FilterSecurityInterceptor 拦截，并根据请求的 URL 从 ExpressionBasedFilterInvocationSecurityMetadataSource 中获取匹配的一组 ConfigAttribute 列表；
 3. ConfigAttribute 列表代表了一组权限规则，由用户自定义指定的，如 `permitAll`, `authenticated`, `denyAll` 等等；
@@ -33,10 +34,10 @@ Spring Security 授权的本质是根据请求的 URL 找到匹配的权限规�
 ## 相关类
 
 在上文的整体流程中，涉及到一些数据结构，如 ConfigAttribute 列表。这是怎么产生的？这个章节将会详细讲到。我们先看一个整体的类图，然后再结合一个实例分析。
-
 ![AccessDecisionManager](/images/spring-cloud/AccessDecisionManager.jpg "AccessDecisionManager")
 
 **关键类：**
+
 - ExpressionUrlAuthorizationConfigurer: 授权操作的配置类，这会对创建和初始化相关的类，如上文提到的 FilterSecurityInterceptor, AccessDecisionManager,ExpressionBasedFilterInvocationSecurityMetadataSource; 
 - FilterSecurityInterceptor: 授权过滤器，这会拦截所有的请求，进行权限判断，这是授权操作的入口；
 - AccessDecisionManager: 它是授权判断的关键类，是否可以访问由它来决策；
@@ -108,6 +109,7 @@ private void interceptUrl(Iterable<? extends RequestMatcher> requestMatchers,
 ```
 
 由此可知，我们知道有如下的转化关系：
+
 - /admin/** ---> AntPathRequestMatcher
 - hasRole("ADMIN") ---> hasRole('ROLE_ADMIN') ---> SecurityConfig
 - antMatchers("/admin/**").hasRole("ADMIN") ---> UrlMapping
@@ -327,6 +329,7 @@ public interface SecurityExpressionOperations {
 SecurityExpressionOperations 包含了一系列权限判断的方法，而 SpEL 表达式权限的判断是调用该接口中的方法来实现的。
 
 ## 总结
+
 - ExpressionUrlAuthorizationConfigurer 类完成对 FilterSecurityInterceptor, AccessDecisionManager, ExpressionBasedFilterInvocationSecurityMetadataSource 对象的创建及初始化；
 - HttpSecurity 中的权限配置会转化为 UrlMapping 对象并存储到 ExpressionInterceptUrlRegistry 中，并最终转化为 WebExpressionConfigAttribute 对象；
 - 权限判断最终转化为 SpEL 表达式值的计算，而方法的判断封装在 SecurityExpressionOperations 对象中。

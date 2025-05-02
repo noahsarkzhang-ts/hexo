@@ -6,6 +6,7 @@ tags:
 - es
 - kibana
 categories:
+
 - 部署
 ---
 
@@ -47,6 +48,7 @@ docker run --name es01-test \
 ```
 
 **说明：**
+
 - TAKE_FILE_OWNERSHIP=true：使用文件挂载之后，容器可能没有访问宿主机的权限，设置该环境变量，可以解决该问题；
 - elasticsearch.yml：将该文件挂载到宿主机，可以方便进行配置；
 - 安装目录：elasticsearch 默认安装在 /usr/share/elasticsearch 目录下。
@@ -84,6 +86,7 @@ docker run --name kib01-test \
 ```
 
 **说明：**
+
 - kibana.yml：将该文件挂载到宿主机，可以方便进行配置；
 - 目录挂载：使用文件挂载之后，容器可能没有访问宿主机的权限，可以将宿主机目录授权为所有用户访问（生产环境不建议使用）；
 

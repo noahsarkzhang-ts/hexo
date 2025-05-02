@@ -110,6 +110,7 @@ func ExampleIsPalindrome() {
 ```
 
 Example 函数有三个作用：
+
 1. 作为文档中 Example 代码，与关联的被测试代码关联在一起，显示在 Doc 文档中；
 2. 可以通过 go test 执行测试代码；
 3. 在文档中提供手动实验代码。

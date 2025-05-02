@@ -5,7 +5,7 @@ updated: 2024-04-12 21:29:08
 tags:
 - ice 对象
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录用到的 icegridadmin  命令。

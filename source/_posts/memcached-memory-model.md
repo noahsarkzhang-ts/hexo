@@ -8,6 +8,7 @@ tags:
 - chunk
 - slabclass
 categories: 
+
 - 缓存
 ---
 Memcached是一个基于内存的缓存系统，存储的是key/value的键值对，与Redis类似。不过相对于Redis，值是无类型的字节数组（类比于Reidis中的String类型）。在Reidis中构建了一个对象系统来存储键值对，Memcached内部是如何处理的？抱着这份好奇心来分析下Memcached的内存模型。
@@ -16,6 +17,7 @@ Memcached是一个基于内存的缓存系统，存储的是key/value的键值�
 
 ## 1. 整体结构
 在开始之前，先说明一些概念：
+
 1. item：存储key/value的数据结构，同时维护了hashtable、LRU链表的指针的信息，是数据的载体；
 2. chunk：存放item，具有固定大小的内存块;
 3. slab：是Memcached一次申请内存的最小单位，默认为1M，然后切分为chunk大小的内存块，是chunk的容器；
@@ -27,6 +29,7 @@ Memcached是一个基于内存的缓存系统，存储的是key/value的键值�
 
 下面是Memcached内存模型的整体结构：
 ![memory-model](/images/memcached-memory-model.jpg "memory-model")
+
 
 1. slabclass中的slots字段指向空闲链表的头指点，通过item中的next及prev指针形成一个双向链表，新创建且未使用的item或过期释放的item会加入到该链表中；
 2. 每一个slabclass都有个LRU list，可以从链表头部和尾部访问LRU链表，一旦item被分配出去，就将该item从空闲链表移到LRU链表中；
@@ -54,6 +57,7 @@ typedef struct {
 } slabclass_t;
 ```
 **重点说明的字段：**
+
 1. size&perslab：表示item的大小及一个slab包含item的数量；
 2. slots：指向第一个空闲的item；
 3. slab_list：分配的slab数组；
@@ -71,6 +75,7 @@ Memcached把slab分为40类（class1～class40），每一个类的slab在内部
 ```c
 chunk size(class i) = (default_size + item_size) * f^(i-1) + CHUNK_ALIGN_BYTES
 ```
+
 1. default_size：默认大小为48字节,也就是Memcached默认的key+value的大小为48字节，启动时可以使用-n参数来调节其大小；
 2. item_size：item结构体的长度，固定为48字节。default_size大小为48字节,item_size为48字节，因此slabclass 1的chunk大小为48+48=96字节；
 3. f：f为factor，是chunk变化大小的因素，默认值为1.25，调节f可以影响chunk的步进大小，启动时可以使用-f参数来指定;
@@ -104,6 +109,7 @@ typedef struct _stritem {
 } item;
 ```
 **重点说明的字段：**
+
 1. 指针：next,prev用于LRU list及空闲列表，而h_next指向相同哈希值的下一个item；
 2. 时间：time,exptime记录了最近访问的时间及过期的时间；
 3. 数据长度：nbytes,nkey分别记录了数据的长度及key的长度，nkey的数据类型为uint8_t,决定了key的最大长度为256(8位无符号整数的最大值)；而数据的最大长度由一个slab的值决定，即1M。
@@ -125,6 +131,7 @@ static item *tails[LARGEST_ID];   //指向各slabclass的LRU链表的tail结点
 
  ## 3. 内存分配
 结合数据模型，对slab及item的使用做一下总结：
+
 1. 初始化slabclass数组，每个元素slabclass[i]都是不同size的slabclass；
 2. 每分配一个新的slab，都会根据所在的slabclass的size来切分chunk，切分完chunk之后，把chunk空间初始化成一个个free item，并插入到slot链表中；
 3. 每使用一个free item都会从slot链表中删除掉并插入到LRU链表相应的位置；

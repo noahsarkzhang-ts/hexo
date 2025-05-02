@@ -9,6 +9,7 @@ tags:
 - AggregateFunction
 - 增量聚合
 categories:
+
 - Flink
 ---
 
@@ -20,10 +21,10 @@ categories:
 ## 概述
 
 Flink Window 一句话描述就是对数据进行切割分桶，方便后续业务的计算，以下面的图示为例。
-
 ![flink-window](/images/flink/flink-window.jpg "flink-window")
 
 **数据流程：**
+
 1. 数据源：传感器每 1S 采集上报的数据，数据格式为：`<传感器id,时间戳(ms),温度>`；
 2. 数据分组: 数据按照`传感器id`进行分组，执行该操作之后，为分为三股逻辑数据流，每一股流包含了一个`传感器id`所有的数据；
 3. 分桶：将一个`传感器id`上的数据按照每 5S 进行切割分桶，如 0~4S,5-9S. 一个桶中包含了同一个时间段内的所有数据；
@@ -189,6 +190,7 @@ public class MyProcessWindowFunction
 
 ProcessWindowFunction 可以与 ReduceFunction 或 AggregateFunction 搭配使用， 使其能够在数据到达窗口的时候进行增量聚合。当窗口关闭时，ProcessWindowFunction 将会得到聚合的结果。 这样它就可以增量聚合窗口的元素并且从 ProcessWindowFunction` 中获得窗口的元数据。
 
+
 1. 使用 ReduceFunction 增量聚合
 
 ```java
@@ -223,6 +225,7 @@ private static class MyProcessWindowFunction
 ```
 
 上例组合 ReduceFunction 与 ProcessWindowFunction，返回窗口中的最小元素和窗口的开始时间
+
 
 2. 使用 AggregateFunction 增量聚合
 
@@ -282,6 +285,7 @@ private static class MyProcessWindowFunction
 Trigger 决定了一个窗口（由 window assigner 定义）何时可以被 window function 处理。 每个 WindowAssigner 都有一个默认的 Trigger。 如果默认 trigger 无法满足需求，可以在 trigger(...) 调用中指定自定义的 trigger。
 
 Trigger 接口提供了五个方法来响应不同的事件：
+
 - onElement(): 该方法在每个元素被加入窗口时调用；
 - onEventTime(): 该方法在注册的 event-time timer 触发时调用；
 - onProcessingTime(): 该方法在注册的 processing-time timer 触发时调用；
@@ -363,6 +367,7 @@ public class MySensorSource implements SourceFunction<SensorReading> {
 ### 程序骨架
 
 程序的处理流程如下：
+
 1. 设置流处理执行环境；
 2. 设置事件时间语义，将 Watermark 间隔时间设置为 200 MS;
 3. 设置定定义 Source；

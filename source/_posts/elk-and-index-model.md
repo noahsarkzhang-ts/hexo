@@ -6,6 +6,7 @@ tags:
 - ELK
 - logstash
 categories:
+
 - Elasticsearch
 ---
 
@@ -14,10 +15,10 @@ categories:
 <!-- more -->
 
 ## 概述
-
 ![elk-logstash-flow](/images/es/elk-logstash-flow.jpg "elk-logstash-flow")
 
 ELK 是 Elasticsearch, Logstash, Kibana 三个组件的首字母，对应三个处理步骤：
+
 - Logstash: 采集模块，读取日志文件写入到 Elasticsearch, 可以使用拉/推两种方式：1）直接读取日志文件；2）开放端口，将数据推送上来；
 - Elasticsearch: 存储模块，存储日志文件；
 - Kibana: 从 Elasticsearch 搜索查询日志文件。
@@ -72,6 +73,7 @@ output {
 ```
 
 有三个部分的内容：
+
 - input: 开启 tcp 9999 端口，接收日志；
 - filter: 定义 timestamp 格式；
 - output：定义两个输出，一个是控制台，方便定位问题，一个写入 Elasticsearch, 按天生成索引；
@@ -184,13 +186,11 @@ logging:
 ### 定义 Index Pattern
 
 按照以下的路径创建 Index Pattern: Management --> Stack Management --> Index patterns --> Create index pattern.
-
 ![kibana-index-pattern](/images/es/kibana-index-pattern.jpg "kibana-index-pattern")
 
 ### 查询日志
 
 创建 Index Pattern 之后，便可通过 Discover 功能查询日志，如下图所示：
-
 ![kibana-search-log](/images/es/kibana-search-log.jpg "kibana-search-log")
 
 ## 存储模型
@@ -198,7 +198,6 @@ logging:
 ### Index Mapping
 
 可以通过 `Index Management` 查看 index 的信息。
-
 ![kibana-index-mapping](/images/es/kibana-index-mapping.jpg "kibana-index-mapping")
 
 Log 日志的 Index Mapping 定义如下所示：
@@ -342,11 +341,13 @@ Log 日志的 Index Mapping 定义如下所示：
   ]
 ```
 
+
 - 1 为模板的名称；
 - 2 为匹配的表达式，包括：match_mapping_type, match, match_pattern, unmatch, path_match, path_unmatch;
 - 3 为转换之后的映射。
 
 **匹配表达式的含义：**
+
 - match_mapping_type: Elasticsearch 自动识别出的类型；
 - match and unmatch：用于匹配字段名称；
 - path_match and path_unmatch: 用于匹配字段的路径及字段。
@@ -388,9 +389,11 @@ Log 日志的 Index Mapping 定义如下所示：
 
 这个 `Dynamic templates` 的含义为任意类型为 `string` 的字段映射为多字段类型：一个字段为 `text` 类型,且 `norms` 为 `fasle`, 另外一个 `keyword` 类型，且只索引前 256 个字符。
 
+
 > Norms ：Norms are index-time scoring factors. If you do not care about scoring, which would be the case for instance if you never sort documents by score, you could disable the storage of these scoring factors in the index and save some space. 
 
 如果一个字段匹配多个 `Dynamic templates`, 如何选择呢？ Elasticsearch 按照顺序选择匹配的第一个。
+
 
 > Templates are processed in order — the first matching template wins. 
 

@@ -7,6 +7,7 @@ tags:
 - 增量更新
 - instance
 categories:
+
 - Springboot
 ---
 
@@ -16,8 +17,8 @@ Canal 是阿里开源的中间件，主要用途是基于 MySQL 数据库增量�
 ## 概述
 
 Canal 使用场景如下所示：
-
 ![canal](/images/spring-cloud/canal.jpg "canal")
+
 
 - `instance` 实例代表一组 Mysql 数据库表，即一组需要订阅的数据库对象；
 - Canal server 伪装成一个 Mysql slave 去订阅 Mysql 的 binlog 日志；
@@ -61,17 +62,20 @@ FLUSH PRIVILEGES;
 
 ### 安装 Canal Server
 
+
 - 下载
 可以在 <strong>[官方网站](https://github.com/alibaba/canal/releases) </strong> 下载最新的安装包，在这里，我们下载 `1.1.5` 的版本。
 ```bash
 wget https://github.com/alibaba/canal/releases/download/canal-1.1.5/canal.deployer-1.1.5.tar.gz
 ```
 
+
 - 解压缩
 ```bash
 mkdir /data/app/canal
 tar zxvf canal.deployer-1.1.5.tar.gz  -C /data/app/canal
 ```
+
 
 - 目录结构
 ```bash
@@ -81,6 +85,7 @@ drwxr-xr-x. 2 root root 4096 4月   7 17:40 lib
 drwxrwxrwx. 4 root root   34 4月   7 18:33 logs
 drwxrwxrwx. 2 root root  177 4月  19 2021 plugin
 ```
+
 
 - 配置 canal
 ```properties
@@ -131,6 +136,7 @@ canal.auto.reset.latest.pos.mode = false
     - canal.destinations: 配置 instance, 默认情况下配置了 `example` 实例。
 
 
+
 - 配置 instance
 Canal Server 默认自带了一个 `example` 的 `instance`, 根据实际情况进行配置，文件路径为：conf/example/instance.properties.
 ```properties
@@ -175,10 +181,12 @@ sh bin/startup.sh
 
 ### 查看日志
 
+
 - 查看 server 日志
 ```bash
 tail -f logs/canal/canal.log
 ```
+
 
 - 查看 instance 的日志
 ```bash
@@ -191,12 +199,14 @@ tail -f logs/example/example.log
 
 ### 安装 Zookeeper
 
+
 - 下载 Zookeeper
 ```bash
 wget  https://downloads.apache.org/zookeeper/zookeeper-3.7.0/apache-zookeeper-3.7.0-bin.tar.gz
 
 tar -xzvf apache-zookeeper-3.7.0-bin.tar.gz -C /data/zookeeper-3.7.0/
 ```
+
 
 - 配置 `zoo.cfg`
 ```bash
@@ -239,6 +249,7 @@ clientPort=2181
 ```
     - dataDir: 数据存储目录，建议修改。
 
+
 - 修改日志目录
 修改 conf/log4j.properties, 指定 Zookeeper 日志目录。
 ```properties
@@ -251,6 +262,7 @@ bin/zkServer.sh start
 ```
 
 ### 修改 Canal Server
+
 - 修改 canal.properties
 ```properties
 canal.zkServers=127.0.0.1:2181
@@ -272,12 +284,14 @@ canal.zkServers=127.0.0.1:2181
 
 ### 接入服务器
 
+
 - 单机直连模式
 ```java
 String destination = "example";
 String ip = "192.168.1.100";
 CanalConnector connector = CanalConnectors.newSingleConnector(new InetSocketAddress(ip, 11111), destination,"canal","canal");
 ```
+
 
 - HA 模式
 ```java
@@ -292,10 +306,12 @@ CanalConnector connector = CanalConnectors.newClusterConnector("192.168.1.100:21
 
 Canal 使用 Zookeeper 来选主和存储数据，选主用来保证一个 `instance` 只能有一个 Canal Server 订阅，同时只能由一个 Canal Client 消费。数据主要是指消费 `instance` 的 binlog 位置信息。
 
+
 - 连接 zk
 ```bash
 bin/zkCli.sh -server 127.0.0.1:2181
 ```
+
 
 - 查看消费的位置 position
 ```bash
@@ -304,10 +320,12 @@ get /otter/canal/destinations/example/1001/cursor
 
 ```
 
+
 - 查看客户端
 ```bash
 get /otter/canal/destinations/example/1001/running
 ```
+
 
 - 查看服务器
 ```bash

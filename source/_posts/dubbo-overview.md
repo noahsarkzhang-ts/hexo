@@ -7,16 +7,19 @@ tags:
 - triple
 - http2
 categories:
+
 - RPC
 ---
 
 ## 概述
 Dubbo 官网对 Dubbo 的描述：
+
 > Apache Dubbo 是一款微服务开发框架，它提供了 RPC通信 与 微服务治理 两大关键能力。这意味着，使用 Dubbo 开发的微服务，将具备相互之间的远程发现与通信能力， 同时利用 Dubbo 提供的丰富服务治理能力，可以实现诸如服务发现、负载均衡、流量调度等服务治理诉求。同时 Dubbo 是高度可扩展的，用户几乎可以在任意功能点去定制自己的实现，以改变框架的默认行为来满足自己的业务需求。
 
 <!-- more -->
 
 Dubbo 目前有两个大的版本：2.x 和 3.0，2.x 版本也是我们在项目中使用的版本，这是一个同步的 Request-Response 模型的 RPC 框架，而 3.0 版本通过引入 triple 协议，支持了更多的通信模型：
+
 - 消费端异步请求(Client Side Asynchronous Request-Response)
 - 提供端异步执行（Server Side Asynchronous Request-Response）
 - 消费端请求流（Request Streaming）
@@ -24,12 +27,15 @@ Dubbo 目前有两个大的版本：2.x 和 3.0，2.x 版本也是我们在项�
 - 双向流式通信（Bidirectional Streaming）
 
 Dubbo 官网将 triple 定义为下一代 RPC 通信协议，是这样描述的：
+
 > 定义了全新的 RPC 通信协议 – Triple，一句话概括 Triple：它是基于 HTTP/2 上构建的 RPC 协议，完全兼容 gRPC，并在此基础上扩展出了更丰富的语义。 使用 Triple 协议，用户将获得以下能力:
+
 - 更容易到适配网关、Mesh架构，Triple 协议让 Dubbo 更方便的与各种网关、Sidecar 组件配合工作。
 - 多语言友好，推荐配合 Protobuf 使用 Triple 协议，使用 IDL 定义服务，使用 Protobuf 编码业务数据。
 - 流式通信支持。Triple 协议支持 Request Stream、Response Stream、Bi-direction Stream。
 
 从同步/异步和通信模型两个维度来总结：
+
 - Dubbo 2.x 是一个同步的、只支持 Request-Response 模型的 RPC 框架；
 - Dubbo 3.0 支持异步、支持 Request Stream、Response Stream、Bi-direction Stream 多种通信模型的下一代 RPC 通信框架。
 
@@ -38,6 +44,7 @@ Dubbo 官网将 triple 定义为下一代 RPC 通信协议，是这样描述的�
 ## Dubbo 服务模型
 ### 一个简化模型
 在 Dubbo 服务模型中有几个重要的概念：
+
 - Invoker：它是 Dubbo 的核心模型，其它模型都向它靠扰，或转换成它，它代表一个可执行体，可以向它发起调用，它有可能是一个本地的实现，也可能是一个远程的实现，也可能一个集群实现；在客户端，它作为服务的调用方，向服务端发起调用，在服务端，它封装了服务实现类，代表了最终的服务提供方；
 - Exporter：它封装了服务端的 Invoker 对象，将服务发布出去；
 - Protocol: 它负责 Exporter 和 Invoker 对象的生命周期管理；

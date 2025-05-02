@@ -10,6 +10,7 @@ tags:
 - Intercepting Filter
 - 责任链
 categories:
+
 - Netty
 ---
 
@@ -101,6 +102,7 @@ pipeline.addLast(group, "handler", new MyBusinessLogicHandler());
 在 ChannelPipeline 中，事件主要主要是通过调用 ChannelHandlerContext 中的方法进行传播，这些方法包括：
 
 **Inbound event propagation method**
+
 - ChannelHandlerContext#fireChannelRegistered()        
 - ChannelHandlerContext#fireChannelActive()            
 - ChannelHandlerContext#fireChannelRead(Object)        
@@ -112,6 +114,7 @@ pipeline.addLast(group, "handler", new MyBusinessLogicHandler());
 - ChannelHandlerContext#fireChannelUnregistered() 
 
 **Outbound event propagation method**
+
 - ChannelHandlerContext#bind(SocketAddress, ChannelPromise)
 - ChannelHandlerContext#connect(SocketAddress, SocketAddress, ChannelPromise)
 - ChannelHandlerContext#write(Object, ChannelPromise)
@@ -151,6 +154,7 @@ public class MyOutboundHandler extends ChannelOutboundHandlerAdapter {
 ![netty-channel-pipeline](/images/netty/netty-channel-pipeline.jpg "netty-channel-pipeline")
 
 如图所示：
+
 1. ChannelHandler 与 ChannelHandlerContext 是一一对应关系，ChannelHandlerContext 持有 ChannelHandler 的引用；
 2. 多个 ChannelHandlerContext 之间使用双向循环链表进行关联；
 3. ChannelPipeline 持有 ChannelHandlerContext 链表 head,tail 结点的引用；
@@ -159,6 +163,7 @@ public class MyOutboundHandler extends ChannelOutboundHandlerAdapter {
 
 **HeadContext**
 HeadContext 是一个特殊的 ChannelHandlerContext，它不仅继承了 AbstractChannelHandlerContext，同时也继承了出站和入站的 ChannelHandler，这有以下的特点：
+
 1. 对于入站事件，它是第一个执行的 ChannelHandler，内部做了一些处理之后，调用 ChannelHandlerContext 相对应的方法，将事件传播给下一个 ChannelHandler；
 2. 对于出站事件，它是最后一个执行的 ChannelHandler，它直接调用 AbstractChannel.AbstractUnsafe 的方法，由 AbstractUnsafe 做处理。
 

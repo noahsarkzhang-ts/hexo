@@ -9,6 +9,7 @@ tags:
 - 限流
 - 长连接
 categories:
+
 - Springboot
 ---
 
@@ -53,6 +54,7 @@ http #http块
 }
 ```
 
+
 - main 全局块：配置影响 nginx 全局的指令。一般有运行 nginx 服务器的用户组，nginx 进程 pid 存放路径，日志存放路径，配置文件引入，允许生成worker process数等；
 - events 块：配置影响 nginx 服务器或与用户的网络连接。有每个进程的最大连接数，选取哪种事件驱动模型处理连接请求，是否允许同时接受多个网路连接，开启多个网络连接序列化等；
 - http 块：可以嵌套多个 server，配置代理，缓存，日志定义等绝大多数功能和第三方模块的配置。如 文件引入，mime-type 定义，日志自定义，是否使用 sendfile 传输文件，连接超时时间，单连接请求数等。
@@ -87,6 +89,7 @@ location /images {
 ```
 
 可以通过 `root` 或 `alias` 指令来设置文件的目录，在 nginx 的配置中，alias 目录和 root 目录是有区别的：
+
 - alias 指定的目录是准确的，即 location 匹配访问的 path 目录下的文件直接是在 alias 目录下查找的；
 - root 指定的目录是 location 匹配访问的 path 目录的上一级目录,这个 path 目录一定要是真实存在 root 指定目录下的；
 - alias 指定的目录后面必须要加上 / 符号；
@@ -155,6 +158,7 @@ http {
 ```
 
 **说明：**
+
 - `location` 与 `proxy_pass` path 路径上包含 / , 则真实的路径为移除 `location` path 的内容，如 url: /app1/hello, 区别的 url: /hello; 
 - `location` 与 `proxy_pass` path 路径上不包含 / , 则直接转发，如 url: /app1/hello, 区别的 url: /app1/hello; 
 
@@ -200,6 +204,7 @@ http {
 ## 限流
 
 在 nginx 中可以使用两个模块进行限流配置：
+
 - ngx_http_limit_conn_module: 连接数限流模块；
 - ngx_http_limit_req_module: 漏桶算法实现的请求限流模块。
 
@@ -251,6 +256,7 @@ http {
 }
 
 ```
+
 - limit_conn：要配置存放 KEY 和计数器的共享内存区域和指定 KEY 的最大连接数；此处指定的最大连接数是 1，表示 nginx 最多同时并发处理 1 个连接；
 - limit_conn_zone：用来配置限流 KEY、及存放 KEY 对应信息的共享内存区域大小；此处 的KEY 是 “$binary_remote_addr” 其表示 IP 地址，也可以使用如 $server_name 作为 KEY 来限制域名级别的最大连接数；
 - limit_conn_status：配置被限流后返回的状态码，默认返回 503；
@@ -287,6 +293,7 @@ http {
     }
 }
 ```
+
 
 - limit_req：配置限流区域、桶容量（突发容量，默认0）、是否延迟模式（默认延迟）；
 - limit_req_zone：配置限流 KEY、及存放 KEY 对应信息的共享内存区域大小、固定请求速率；此处指定的 KEY 是“$binary_remote_addr” 表示IP地址；固定请求速率使用 rate 参数配置，支持 10r/s 和 60r/m，即每秒 10 个请求和每分钟 60 个请求，不过最终都会转换为每秒的固定请求速率（10r/s 为每 100 毫秒处理一个请求；60r/m，即每 1000 毫秒处理一个请求）。

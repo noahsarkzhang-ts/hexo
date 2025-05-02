@@ -7,6 +7,7 @@ tags:
 - protocol bufffer
 - ProtostuffUtils
 categories:
+
 - Alligator网关
 ---
 
@@ -88,6 +89,7 @@ message AddressBook {
 // [END messages]
 ```
 **说明：**
+
 1. syntax: PB 版本，有 v2 和 v3 两个版本，值分别为 proto2 和 proto3;
 2. package: 包名，表示命名空间，用于解决名称冲突，在 Java 中转换为 package 包名；
 3. java_multiple_files：Java 申明，若为 true, 表示为每一个 message 生成独立的文件（嵌套的 message 除外）；
@@ -117,6 +119,7 @@ repeated MapFieldEntry map_field = N;
 protoc -I=. --java_out=. addressbookV2.proto
 ```
 **说明：**
+
 1. -I：指定 proto 文件所在的源目录；
 2. --java_out：指定 Java 语言编译输出的目录；
 

@@ -20,6 +20,7 @@ func name(parameter-list)(result-list) {
 ```
 
 说明：
+
 1. 返回值可以有多个，这是区别于其它编程语言的地方。
 实例：
 `func findLinks(url string) ([]string,error) {}`
@@ -62,6 +63,7 @@ fmt.Errorf("parsing %s as HTML:%v",url,err)
 fmt.Errorf使用fmt.Sprintf函数格式化一条错误信息并且返回一个新的错误值，使用该方法，可以将错误消息串联起来，方便定位。
 
 说明：
+
 1. `log.Fatalf("Site is down: %v\n",err)`, 如果产生的错误，不能恢复，可以打印日志退出程序。
 
 ## 函数变量

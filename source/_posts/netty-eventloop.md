@@ -6,12 +6,14 @@ tags:
 - EventLoop
 - 事件循环
 categories:
+
 - Netty
 ---
 
 ## 1. 概述
 
 EventLoop 是 Reactor 模式中的执行者，首先它持有 Selector 对象，监听多路 SocketChannel 的网络 I/O 事件，并对 I/O 事件分发处理。同时，它持有一个 Thread 对象，除了监听网络 I/O 事件， EventLoop 也可以执行提交的任务，包括定时任务，总结来说，EventLoop 具有如下三大功能：
+
 1. 负责监听 SocketChannel 对象的 I/O 事件；
 2. 处理分发 I/O 事件；
 3. 执行任务，包括定时任务。
@@ -259,6 +261,7 @@ private boolean needsToSelectAgain;
 ```
 
 在这个阶段有三个重点：
+
 1. 设置 selector 的超时时间，主要是以下一个定时任务执行的时间间隔作为参考来设置超时时间，避免阻塞定时任务的准时执行；
 2. selector 唤醒的机制，如果超时时间过长，中途有任务插入，需要执行，此时需要中断 selector；
 3. 重建 selector，解决 bug 8566。
@@ -487,6 +490,7 @@ try {
 ```
 
 处理 I/O 事件的大致流程如下：
+
 1. 遍历 selectedKeys 集合，处理所有 Channel 的 I/O 事件，一个 SelectionKey 对象代表一个 Channel 的 I/O 事件；
 2. 取出 SelectionKey 对象中的附件，该附件由 AbstractNioChannel.doRegister 方法注册到 Selector 对象上，附件就是 AbstractNioChannel 自身，触发 I/O 事件时，再由 SelectionKey 对象返回；
 3. 根据附件对象的不同，调用不同的处理逻辑，这里主要是处理 Channel 的 I/O 事件
@@ -545,6 +549,7 @@ public abstract SelectionKey register(Selector sel, int ops, Object att)
 ```
 
 真正的处理逻辑在 processSelectedKey 方法中处理，这里有两个重点：
+
 1. 写缓存空间充足，注册 OP_WRITE 事件会频繁触发，导致 cpu 空转，所以正常情况下，不需要注册 OP_WRITE 事件，只有在写缓存满的时候才会注册该事件，触发之后进行刷新操作；
 2. 在 Netty 中，将 OP_ACCEPT 当作读操作，只不过它读取的数据比较特殊，是 SocketChannel 对象。
 
@@ -678,6 +683,7 @@ PriorityQueue<ScheduledFutureTask<?>> scheduledTaskQueue;
 在 EventLoop 中，有两类任务，一是常规的任务，没有时间属性，二是周期性或延时的定时任务，它们分别存放到两个不同的队列。任务执行时，先将到期的定时任务从 scheduledTaskQueue 队列移动到 taskQueue 中，再统一执行 taskQueue 队列中的任务。
 
 任务执行的大致如下：
+
 1. 将到期的定时任务移动到 taskQueue 中；
 2. 计算此次执行的时长，如果执行的时间超过设定的执行时长，则退出进行下一轮的事件处理；
 3. 遍历执行 taskQueue 中的任务，在两种情况下退出任务的执行：1）任务的执行时长超过了设定的执行时长；2）taskQueue 队列为空；
@@ -915,6 +921,7 @@ protected boolean beforeScheduledTaskSubmitted(long deadlineNanos) {
 ```
 
 ScheduledFutureTask 对象封装了三个功能：
+
 1. 执行添加任务，将 ScheduledFutureTask 对象本身添加到 scheduledTaskQueue 队列；
 2. 执行延时任务，由于延时任务只会执行一次，执行完便结束；
 3. 执行周期性任务，执行完本轮的任务之外，还需要将 ScheduledFutureTask 添加回 scheduledTaskQueue 队列，等待下一轮执行。

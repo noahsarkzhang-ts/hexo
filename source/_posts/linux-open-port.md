@@ -6,7 +6,7 @@ tags:
 - iptables 命令
 - firewall-cmd 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录在 Linux 中常用开启端口的命令。

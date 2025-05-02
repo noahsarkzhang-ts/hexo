@@ -6,7 +6,7 @@ tags:
 - 抓包
 - nsenter
 categories:
-- 运维
+- 命令
 ---
 
 这篇文章讲述一种在 Docker 容器内抓包的方法。

@@ -7,6 +7,7 @@ tags:
 - metric
 - 审计
 categories:
+
 - Springboot
 ---
 
@@ -42,6 +43,7 @@ Actuator 提供的 Endpoins 有：
 | GET | /heapdump | 获取 jvm dump文件 |
 
 出于安全的原因，大部分 Endpoints 是关闭的，可以通过以下的属性开启：
+
 - management.endpoints.web.exposure.include='*', 代表开启全部监控，也可仅配置需要开启的监控，如： management.endpoints.web.exposure.include=beans,trace。
 - management.endpoint.health.show-details=always, health endpoint开启显示全部细节。默认情况下 `/actuator/health` 是公开的，但不显示细节。
 - management.endpoints.web.base-path=/monitor, 启用指定的 ur l地址访问根路径，默认路径为 `/actuator/*` , 开启则访问路径变为 `/monitor/*`. 
@@ -50,6 +52,7 @@ Actuator 提供的 Endpoins 有：
 ### 集成
 
 Springboot Actuator 借助 Micrometer，能够对接以下的各种监控系统：
+
 - AppOptics
 - Atlas
 - Datadog

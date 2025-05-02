@@ -8,12 +8,14 @@ tags:
 - binlog
 - 事务
 categories:
+
 - 数据库
 ---
 
 ## 1. 概述
 在 Mysql 中，存储有三种日志，分别是 binlog log、undo log及 redo log，其中 binlog 日志由 Mysql Server 生成，用来记录对数据库的更新操作，使用场景有主从同步及数据恢复；undo log及 redo log由 Innodb 存储引擎生成，用于保障事务进行。undo日志用于事务的回滚及MVCC，实现事务的原子性，而 redo log基于 WAL（ Write-Ahead Logging） 技术，存储事务过程中对数据表的修改，主要是数据页的修改，保证了事务的持久性。这三种日志在数据库表的更新操作（包括新增、修改及删除）中，相互配合，保障了事务的顺利执行，下图以一次数据更新操作演示了它们的工作机制。
 ![mysql-transaction-overview](/images/mysql-log/mysql-transaction-overview.jpg "mysql-transaction-overview")
+
 1. undo log 存储在系统表空间中（新版的 Mysql 已经可以设置独立的表空间），对 undo log 的更改同样记录到 redo log中；
 2. redo log 由独立的日志文件存储，日志文件只有追加操作，顺序写入到磁盘中，相比数据页的随机写入，具有较高的效率；
 3. binlog log 配合 redo log，实现了内部的 XA 协议，保证了数据在 Innodb 及 Mysql 之间的一致性。
@@ -29,6 +31,7 @@ categories:
 
 **表空间**
 表空间可以看作是 InnoDB 存储引擎 逻辑结构的最高层。表空间文件：InnoDB默认的表空间文件为 ibdata1。
+
 - 页：每页数据为16kb，且不能进行修改。常见的页类型有：数据页，Undo页，系统页，事务数据页，插入缓冲位图页，插入缓冲空闲列表页，未压缩的二进制大对象页，压缩的二进制大对象页
 - 区：由64个连续的页组成，每个页大小为16kb，即每个区的大小为1024kb即1MB
 - 段：表空间由各个段组成，常见的段有数据段，索引段，回滚段（undo log段）等。
@@ -37,6 +40,7 @@ categories:
 缓存技术是一种常用的性能优化技术，在 Mysql 中，使用 Buffer Pool 来缓存表数据，它是以数据页为单位。引入缓存，也会引入同步数据到磁盘的问题，如果每一个事务都同步数据，由于一个事务可能涉及到数据面，同步数据的操作是一个随机 IO 的操作，性能损耗很大。为了解决问题，使用了WAL（ Write-Ahead Logging）技术，引入 redo log。它的基本思想是：将数据页修改写入 redo log，日志文件是顺序写入，性能很高，同时Buffer Pool 数据异步写入磁盘。通过 redo log，即使 Mysql 宕机，也可以通过 redo log 进行恢复。
 
 redo log由两部分组成：
+
 1. redo log缓冲区 Log Buffer；
 2. redo log日志文件，在 InnoDB 中，redo log 是固定大小的，比如可以配置为一组 4 个文件，每个文件的大小是 1GB，从头开始写，写到末尾又回到开头循环写，如下图所示：
 ![undo-circle](/images/mysql-log/undo-circle.png "undo-circle")
@@ -48,6 +52,7 @@ write pos 和 checkpoint 之间的部分可以用来记录新的操作。如果 
 
 **redo log的记录内容**
 undo log和 redo log 本身是分开的。Innodb 的 undo log 是记录在数据文件（系统表空间）中的，而且 innodb 将 undo log 的内容看做是数据，因此对undo log本身的操作（如向undo log插入一条undo log记录等），都会记录到redo log。undo log 可以通过redo log 将其恢复。因此当数据表插入一条记录时，涉及到的操作如下所示：
+
 - 向 undo log 插入一条 undo log 记录；
 - 向 redo log 中插入一条 “插入 undo log 记录”的redo log记录；
 - Buffer Pool 中插入数据 （异步同步到磁盘）；
@@ -55,17 +60,22 @@ undo log和 redo log 本身是分开的。Innodb 的 undo log 是记录在数据
 
 
 **redo log 参数**
+
 - innodb_log_files_in_group
 redo log 文件的个数，命名方式如：ib_logfile0，iblogfile1... iblogfilen。默认2个，最大100个。
+
 
 - innodb_log_file_size
 文件设置大小，默认值为 48M，最大值为512G，注意最大值指的是整个 redo log系列文件之和，即（innodb_log_files_in_group * innodb_log_file_size ）不能大于最大值512G。
 
+
 - innodb_log_group_home_dir
 文件存放路径
 
+
 - innodb_log_buffer_size
 redo Log 缓存区，默认8M，可设置1-8M。延迟事务日志写入磁盘，把redo log 放到该缓冲区，然后根据 innodb_flush_log_at_trx_commit参数的设置，再把日志从buffer 中flush 到磁盘中。
+
 
 - innodb_flush_log_at_trx_commit
     - innodb_flush_log_at_trx_commit=1，每次commit都会把redo log从redo log buffer写入到system，并fsync刷新到磁盘文件中。
@@ -82,9 +92,11 @@ Innodb 为了支持回滚和 MVCC，需要备份旧数据，undo log 就负责�
 ### 4.1 undo log 类型
 undo log有两种类型，分别是 insert undo log 和 update undo log。前者记录的是insert 语句对应的undo log，后者对应的是 update、delete 语句对应的undo log。
 
+
 1. insert undo log
 nsert undo log 只对事务本身可见，所以insert undo log在事务提交后可直接删除，无需通过 purge 线程执行清理操作。insert undo log 包含的字段如下：
 ![insert-undo-log](/images/mysql-log/insert-undo-log.jpg "insert-undo-log")
+
 
 2. update undo log
 执行 update 或者 delete 会产生 undo log，会影响已存在的记录，为了实现MVCC，会将同一个记录的多个版本的 undo log 串联起来，根据隔离级别的不同，会看到不同版本的数据，update undo log 不能在事务提交时立刻删除，需要等待 purge 线程进行最后的删除操作。如果是长事务，会产生大量的 undo log。undo log 包含的字段如下：
@@ -92,6 +104,7 @@ nsert undo log 只对事务本身可见，所以insert undo log在事务提交�
 
 ### 4.2 事务回滚
 事务根据 sql的类型，进行相应的处理：
+
 - insert sql : 在 undo log 中记录下 insert 进来的数据的 ID，当 rollback 时，根据 ID 完成精准的删除；
 - delete sql ：在 undo log 中记录删除的数据，当回滚时会将删除前的数据 insert 进去；
 - update sql ：在 undo log 中记录下修改前的数据，回滚时只需要反向update即可；
@@ -100,6 +113,7 @@ nsert undo log 只对事务本身可见，所以insert undo log在事务提交�
 对于 insert 类型的 undo log，由于只对当前事务可见（没有事务会对还未插入的数据感兴趣），在事务提交之后该 undo log就会被删除。但对于 update 类型的 undo log 来说，该操作会影响当前的记录，由于同时可能会有多个事务对当前记录进行 update 操作，Innodb 使用 DATA_ROLL_ID 指针将多个版本的 undo log 串联起来，而链条的起点则是行记录中的隐藏字段 DB_ROLL_PTR 。
 
 Innodb 为每个记录中记录了三个隐藏字段：
+
 - 6字节的事务ID（DB_TRX_ID）；
 - 7字节的回滚指针（DB_ROLL_PTR）；
 - 隐藏的主键id，如果没有主键，Mysql 自动生成一个主键。
@@ -130,12 +144,14 @@ binlog 用于记录数据库执行的更新操作(不包括查询)信息，以�
 
 **binlog log 格式**
 binlog log 有三种格式，分别为 STATMENT 、 ROW 和 MIXED 。
+
 - STATMENT ： 基于 SQL 语句的复制( statement-based replication, SBR )，每一条会修改数据的 sql 语句会记录到 binlog 中；
 - ROW ： 基于行的复制( row-based replication, RBR )，不记录每条 sql 语句的上下文信息，仅需记录哪条数据被修改了；
 - MIXED ： 基于 STATMENT 和 ROW 两种模式的混合复制( mixed-based replication, MBR )，一般的复制使用 STATEMENT 模式保存 binlog ，对于 STATEMENT 模式无法复制的操作使用 ROW 模式保存 binlog。
 
 **binlog log 写盘**
 在写 binlog，通过参数 sync_binlog 来控制何时将 binlog fsync到磁盘。
+
 - 0：事务提交是没有立即 fsync 文件到磁盘，而是依赖于操作系统的 fsync 机制；
 - 1：每次 commit 的时候都要将 binlog fsync 磁盘；
 - N：指定提交次数后，统一fsync到磁盘。
@@ -143,6 +159,7 @@ binlog log 有三种格式，分别为 STATMENT 、 ROW 和 MIXED 。
 要保证数据的可持久性，sync_binlog 必须设置为 1。
 
 **使用场景**
+
 1. 主从同步；
 2. 数据恢复。
 
@@ -157,12 +174,14 @@ update test set a='redo' where id=1;
 
 **两阶段提交过程**
 MySQL 采用了如下的过程实现内部 XA 的两阶段提交：
+
 1. Prepare 阶段：Innodb 将回滚段设置为 prepare 状态；将 redo log 写文件并刷盘；
 2. Commit 阶段：binlog 写入文件；binlog 刷盘；Innodb commit；
 
 两阶段提交保证了事务在多个引擎和 binlog 之间的原子性，以 binlog 写入成功作为事务提交的标志，而 InnoDB 的 commit 标志并不是事务成功与否的标志。
 
 在崩溃恢复中，是以 binlog 中的 xid 和 redo log 中的 xid 进行比较，xid 在 binlog 里存在则提交，不存在则回滚。我们来看崩溃恢复时具体的情况：
+
 - 在 prepare 阶段崩溃，即已经写入 redolog，在写入 binlog 之前崩溃，则会回滚；
 - 在 commit 阶段，当没有成功写入 binlog 时崩溃，也会回滚；
 - 如果已经写入 binlog，在写入 InnoDB commit 标志时崩溃，则重新写入 commit 标志，完成提交。

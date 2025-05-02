@@ -9,6 +9,7 @@ tags:
 - EventPoller
 - Session
 categories: 
+
 - 代码分析
 ---
 
@@ -22,6 +23,7 @@ categories:
 对于 UDP 服务器，UDP 是无连接的协议，一个 UDP Socket 没有服务器客户端之分，对于服务器来说，一个 Socket 就可以接受所有的客户端数据，这必然导致数据的处理变得非常复杂，比如，如何区分不同的客户端，如何高效且安全的在多线程下处理客户端数据等。
 
 为了充分利用多核多线程的性能优势，UDP 可以模拟成有连接的 TCP 协议，使用 Reactor 模型，即多线程 + epoll(select) 的编程模型，为了达到这个目标，需要借助以下的技术：
+
 1. 端口重用SO_REUSEADDR、SO_REUSEPORT；
 2. 模拟连接，一个客户端请求建立一个 Client，确定五元组（包括协议类型）。
 
@@ -56,11 +58,15 @@ connect(sd, (struct sockaddr* )&svr_addr, addrlen);
 
 与 TCP 服务器一样，需要一个 Server UDP Socket 来模拟接收连接请求，一般是接收到第一个数据包的时候就创建一个新的 Clien UDP Socket 来接收后续的数据包。如果客户端数据传输较快，Server UDP Socket 连续收到了多个来自同一个客户端的数据包，此时，需要将后续的包转发给 Clien UDP Socket 所在的线程进行处理。
 
+UDP 服务器的结构与 TCP 服务器基本一致，其整体结构如下所示：
+![zlmediakit-udp-model](/images/zlmediakit/zlmediakit-udp-model.jpg "zlmediakit udp model")
+
 # 网络模型
 
 与 TcpServer 类似，使用多线程 + epoll (select)，一个 Server fd + 多个 epoll 实例。
 
 每一个线程都创建了一个 epoll  实例，并以 ET 边沿触发模式监听同一个 Server fd 的读事件，使用 EPOLLEXCLUSIVE 标志位防止惊群效应，线程阻塞在 epoll_wait上 等待客户端连接。
+
 
 > 不同系统有不同的多路复用技术，Linux 系统为 epoll，Windows 为 select, 现以 Linux 为例。
 
@@ -175,6 +181,7 @@ void UdpServer::start_l(uint16_t port, const std::string &host) {
 当 Server Udp Socket 收到客户端的第一个数据包时，会触发 UdpServer 的 onRead 方法，会检查是否存在 UDP Session，如果不存在，则创建 Client UDP Socket 和 UDP Session，并将二者关联起来。
 
 在下面的代码中，包含如下的内容：
+
 - 分配负载最小的 EventPoller 线程对象，并与新创建的 Client UDP Socket 关联起来，这样便可将 Client UDP Socket 的读写事件注册到 EventPoller 的 epoll 实例上，由该 EventPoller 线程处理后续的请求；
 - 判断分配的 EventPoller 线程是否是当前线程，如果是，则直接创建 UDP Session 并定义回调方法，如果不是，则向新分配的 EventPoller 线程添加一个异步任务，由该异步任务创建 UDP Session，并且需要复制数据包，回调给 Session 处理。
 

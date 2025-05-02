@@ -7,6 +7,7 @@ tags:
 - 注册中心
 - 服务发现
 categories:
+
 - Springboot
 ---
 
@@ -15,7 +16,6 @@ categories:
 <!-- more -->
 
 ## 实例介绍 
-
 ![nacos-discovery-example](/images/spring-cloud/nacos-discovery-example.png "nacos-discovery-example")
 
 实例包含两个程序，一个是服务提供者用于实现特定的功能，是服务的提供者，一个是服务的消费者，是服务的调用方。

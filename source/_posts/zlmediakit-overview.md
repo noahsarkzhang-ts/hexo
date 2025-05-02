@@ -10,6 +10,7 @@ tags:
 - RingBuffer
 - RingReader
 categories: 
+
 - 代码分析
 ---
 
@@ -20,10 +21,10 @@ categories:
 # 概述
 
 在 ZLMediaKit 中，收到某种协议的推流之后，会将转换为多种协议的音视频流，以便不同的客户端进行播放，其整体流程如下，并以 RTMP 推流，RTSP 拉流举例：
-
 ![zlmediakit](/images/zlmediakit/zlmediakit.jpg "zlmediakit 整体结构")
 
 **概念：**
+
 1. MediaSource: 媒体源，任何 rtsp/rtmp 的直播流都源自该对象，每种协议都有自己的媒体源对象，如 RtmpMediaSource 和 RtspMediaSource；
 2. RtmpSession & RtspSession：会话对象，表示一个网络连接，每种协议都有其会话对象，通过它，可以实现协议的解析及数据的接收和发送；
 3. MediaSourceMuxer：媒体源复用器，使用它可以实现流媒体的协议转换，它接收两类数据：1）Track，轨道数据，它用来描述音视频元数据，一个轨道代表一股音视频流；2）Frame，音视频媒体数据；

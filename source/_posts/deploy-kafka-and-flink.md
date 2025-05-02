@@ -6,6 +6,7 @@ tags:
 - kafka
 - flink
 categories:
+
 - 部署
 ---
 
@@ -23,6 +24,7 @@ categories:
 从 kafka 官方网站下载最新稳定版，当前最新版本为 `kafka_2.13-3.1.0.tgz`, 如果要下载稳定版本，可以自行选择。
 
 官方下载地址：<https://kafka.apache.org/downloads>
+
 
 > 说明： kafka_[scala version]-[kafak version].tgz, 其中 2.13 是 Scala version, 3.1.0 是 kafka 版本。
 
@@ -93,6 +95,7 @@ $ bin/kafka-topics.sh --delete --bootstrap-server localhost:9092 --topic qui
 
 Flink 当前最新稳定版本是 `flink-1.14.3-bin-scala_2.12.tgz`, 我们从官方网站下载。
 官方下载地址：<https://flink.apache.org/downloads.html>
+
 
 > 说明：flink-1.14.3-bin-scala_2.12.tgz 中可以指定特定的 scala 版本，这里我们选择的是 scala 2.12 版本。
 

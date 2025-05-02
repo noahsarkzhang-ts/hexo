@@ -5,7 +5,7 @@ updated: 2022-02-12 20:21:08
 tags:
 - top
 categories:
-- 工具
+- 命令
 ---
 
 在日常工作，查看服务器的负载、CPU 及内存使用情况，尤其查看进程使用内存、CPU 的占比，定位哪个进程占用了最多的内存及 CPU 周期，这个时候，就可以使用 Top 命令了。
@@ -19,9 +19,11 @@ top [参数]
 ```
 
 ### 功能介绍
+
 > 显示当前系统正在执行的进程的相关信息，包括进程 ID、内存占用率、CPU 占用率等命令参数。
 
 ### 常用参数
+
 - -c：显示完整的程序启动命令
 - -p：<进程号> 指定进程
 - -n：<次数> 循环显示的次数，然后退出
@@ -53,10 +55,12 @@ top - 20:39:43 up 743 days,  4:18,  1 user,  load average: 0.01, 0.04, 0.05
 ```
 输出系统的负载情况，参数解析如下：
 
+
 - 20:39:43, 当前系统时间；
 - up 743 days, 服务器已经运行了 743 天；
 - 1 user, 当前有 1 个用户登录系统；
 - load average: 0.01, 0.04, 0.05, load average 后面的三个数分别是 1 分钟、5 分钟、15 分钟的负载情况。
+
 
 > 说明：load average 是衡量 CPU 繁忙程度的重要指标，该值与 CPU 核数强相关。该值除以 CPU 核数大于 1, 则说明 CPU 满负荷运行。
 
@@ -64,6 +68,7 @@ top - 20:39:43 up 743 days,  4:18,  1 user,  load average: 0.01, 0.04, 0.05
 Tasks: 112 total,   1 running, 111 sleeping,   0 stopped,   0 zombie
 ```
 输出系统任务的分布情况：
+
 
 - 112, 系统总共有 112 个进程；
 - 1, 1 个进程在运行；
@@ -75,6 +80,7 @@ Tasks: 112 total,   1 running, 111 sleeping,   0 stopped,   0 zombie
 %Cpu(s):  1.3 us,  1.5 sy,  0.0 ni, 97.2 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
 ```
 输出 CPU 使用情况：
+
 - 1.3 us, 用户空间占用 CPU 的百分比。
 - 1.5 sy, 内核空间占用 CPU的百分比。
 - 0.0 ni, 改变过优先级的进程占用 CPU 的百分比
@@ -84,6 +90,7 @@ Tasks: 112 total,   1 running, 111 sleeping,   0 stopped,   0 zombie
 - 0.0 si, 软中断（Software Interrupts）占用CPU的百分比
 - 0.0 st, 表示被强制等待虚拟CPU的时间
 
+
 > 说明：通过该行，可以查看 CPU 的繁忙情况，如果 id 较大，说明系统较空闲，us 较大，说明应用占用 CPU 较多，CPU 资源可能不够，wa 较大，IO 有可能是瓶颈。
 
 ```bash
@@ -91,10 +98,12 @@ KiB Mem :  3880256 total,   165932 free,  2718472 used,   995852 buff/cache
 ```
 内存使用情况：
 
+
 - 3880256 total, 物理内存总量（4 GB）
 - 165932 free, 空闲内存总量（165 MB）
 - 2718472 used, 使用中的内存总量（2.7 GB）
 - 995852 buffers, 缓存的内存量 （1 GB)
+
 
 > 说明：该行直观地显示内存的使用，可以评估内存的整体使用情况。
 
@@ -102,6 +111,7 @@ KiB Mem :  3880256 total,   165932 free,  2718472 used,   995852 buff/cache
 KiB Swap:        0 total,        0 free,        0 used.   885852 avail Mem
 ```
 交换分区使用情况：
+
 
 - 0 total, 交换区总量（0）
 - 0 free, 空闲交换区总量（0）
@@ -112,6 +122,7 @@ KiB Swap:        0 total,        0 free,        0 used.   885852 avail Mem
 PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ 
 ```
 进程监控信息：
+
 
 - PID, 进程 id; 
 - USER, 进程所有者; 
@@ -126,10 +137,12 @@ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+
 - TIME+, 进程使用的CPU时间总计，单位1 / 100 秒;
 - COMMAND, 进程名称（命令名/命令行;
 
+
 > 说明：RES, %MEM 可以查看进程内存使用情况，%CPU 可以查看进程 CPU 使用情况。
 
 ### 常用交互命令
 在 top 命令执行过程中可以使用的一些交互命令：
+
 
 - h: 显示帮助画面，给出一些简短的命令总结说明；
 - k: 终止一个进程；
@@ -141,6 +154,7 @@ PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+
 - M: 根据驻留内存大小进行排序；
 - P: 根据CPU使用百分比大小进行排序；
 - T: 根据时间/累计时间进行排序；
+
 
 > 说明：使用 M 命令，对所有进程按照内存使用情况排序，从而查看哪个进程占用最多内存，而 C 命令，可以查看占用 CPU 周期最多的进程。
 

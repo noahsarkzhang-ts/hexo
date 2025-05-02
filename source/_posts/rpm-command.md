@@ -5,7 +5,7 @@ updated: 2024-04-04 23:03:56
 tags:
 - rpm 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录 Rpm 常用的命令。

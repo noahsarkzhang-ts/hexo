@@ -6,7 +6,7 @@ tags:
 - 父亲节
 - 礼物
 categories:
-- 动动
+- 动听
 ---
 
 今年父亲节动动给我画了一副画，还挺形象的。
@@ -15,7 +15,7 @@ categories:
 
 ## 礼物
 
-![father-day-gift](/images/dongdong/father-day-gift.jpg "father-day-gift")
+<img src="/images/dongdong/father-day-gift.jpg" width="50%" height="50%">
 
 **说明：**
 peolg, 这个单词没有任何含义，自己创造的.....

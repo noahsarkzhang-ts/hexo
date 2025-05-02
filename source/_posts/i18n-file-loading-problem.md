@@ -6,7 +6,7 @@ tags:
 - i18n
 - spring.profiles.include
 categories:
-- 运维
+- Springboot
 ---
 
 这篇文章讲述在 Springboot中， 一个由于指定参数 spring.config.location 参数导致不能加载国际化资源文件的问题。
@@ -54,12 +54,14 @@ ResourceBundleMessageSource 可以正确加载资源文件，ResourceBundleMessa
 通过上面的分析，未加载资源文件是程序没有读到 "spring.messages.basename" 配置项，而该配置项在 application-i18n.yml 文件中定义，问题转换为没有读取到 application-i18n.yml，即在启动时指定了--spring.config.location参数，没有加载 application-i18n.yml 配置文件。--spring.config.location 参数会改变配置文件的加载？我们继续分析配置文件的加载逻辑。
 
 属性或配置项是从一个 Environment 对象中读取的，每一个 spring 应用都至少有一个 Environment 对象，而 Environment 对象有一个 PropertySources 成员。在 Environment 的默认实现 StandardEnvironment 中，它会给 PropertySources 添加两个属性源：
+
 1. systemProperties，PropertiesPropertySource 类型，保存所有通过 System.getProperties() 获取的属性；
 2. systemEnvironment，SystemEnvironmentPropertySource 类型，保存所有通过 System.getenv() 获取的属性；
 PropertiesPropertySource 同 SystemEnvironmentPropertySource 的区别是: 在 SystemEnvironmentPropertySource 的 key 中 . 和 _ 是等价的，并且不区分大小写；
 
 当需要用到属性值时，PropertyResolver 会由头到尾顺序地从 PropertySources 遍历所有 PropertySource，从中找到匹配的属性值。
 spring-boot 启动时，会向 environment 添加多个属性源，包括：
+
 1. commandLineArgs，SimpleCommandLinePropertySource 类型，支持将命令行中 –key=value 形式的参数保存到 Map；
 2. configurationProperties，ConfigurationPropertySourcesPropertySource 类型，这个类型比较特殊，它是一个 Iterable<ConfigurationPropertySource> 的包装，在这里是 SpringConfigurationPropertySources 的包装，而 SpringConfigurationPropertySources 又包装了 environment 的 propertySources；
 3. random，类型是 RandomValuePropertySource。
@@ -124,6 +126,7 @@ propertySourceList = {CopyOnWriteArrayList@5462}  size = 6
 未加载了 `classpath:/application-i18n.yml` 配置文件。
 
 ## 解决办法
+
 1. 在启动参数中加入 `spring.messages.basename=i18n/messages` 配置项，让程序可以从环境变量中读取到该配置，从而生成 `ResourceBundleMessageSource` 对象，加载资源文件；
 2. 修改主程序模块中 application.ym l配置，移除 spring.profiles.include 配置，加入 spring.messages.basename 配置，如下所示：
 ```yaml

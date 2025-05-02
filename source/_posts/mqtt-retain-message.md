@@ -5,6 +5,7 @@ updated: 2023-01-01 18:53:39
 tags:
 - retain message
 categories:
+
 - MQTT
 ---
 
@@ -15,10 +16,10 @@ MQTT 可以设置 `Topic` `Retain` 消息，每当有新的订阅关系匹配时
 ## 概述
 
 `Retain` 消息在 PUBLISH 控制报文中设置，如下所示：
-
 ![mqtt-retain-flag](/images/mqtt/mqtt-retain-flag.jpg "mqtt-retain-flag")
 
 `Retain` 标志位设置为 0 时，不保存消息，如果为 1，则有如下规则：
+
 
 1. Retain = 1, qos = 0, 清空该 `Topic` 下的 `Retain` 消息； 
 ```java
@@ -33,6 +34,7 @@ public void receivedPublishQos0(MqttSession session, PublishInnerMessage msg) {
     ......
 }
 ```
+
 
 2. Retain = 1, qos >= 1, 若 playload 为空，则清空消息，若 playload 不为空，则保存消息。
 ```java

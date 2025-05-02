@@ -7,6 +7,7 @@ tags:
 - RabbitMQ
 - RocketMQ
 categories:
+
 - Alligator网关
 ---
 
@@ -14,6 +15,7 @@ categories:
 
 在 Alligator 系统中，网关与业务系统之间是通过 MQ 进行通信。为了简化开发成本，基于 MQ, 实现了一套 RPC 调用，其封装了超时、同步调用及异步调用等功能，调用模型如下图所示：
 ![mq-rpc-model](/images/alligator/mq-rpc-model.jpg "mq-rpc-model")
+
 
 - 使用两个 MQ 队列来存储信息，分别是请求及响应信息；
 - 在请求端维护一个 request id,在响应信息中带上 request id,从而将请求与响应对应起来；
@@ -25,8 +27,8 @@ categories:
 ## 2. 数据结构
 
 在 MQ RPC 中，有几个关键的接口：1) MqProxy; 2) Topic; 3) Message; 4) PromisHolder; 5) ChannelHolder; 6) Consumer; 7) Producer; 除此之外，还有一个 RpcPromise, 它继承了 Netty 中的 DefaultPromise 类，实现异步转同步的功能。其类图如下所示：
-
 ![mq-rpc](/images/alligator/mq-rpc-class.jpg "mq-rpc")
+
 
 1. MqProxy: MQ RPC 中的核心类，封装了 MQ 调用的实现，不同类型的 MQ 实现该接口即可。外部模块通过该类进行 RPC 的调用及响应结果的处理；
 2. Topic：MQ 队列的抽象，在不同 MQ 中含义可能不同，在 RoketMQ, Kafka 中，该 Topic 对应的就是 MQ 中的 Topic, 而在 RabbitMQ 中，Topic 对应的则是一个队列；

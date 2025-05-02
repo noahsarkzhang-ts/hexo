@@ -6,6 +6,7 @@ tags:
 - JMM
 - 指令重排
 categories:
+
 - Java基础
 ---
 
@@ -23,6 +24,7 @@ Java 内存模型（JMM）描述了在Java 语言中线程如何与主内存（M
 ![JMM](/images/JMM.jpg "JMM")
 
 从上图来看，线程A与线程B要进行通过的话，必须要经历两个步骤：
+
 1. 首先，线程A将在本地内存中修改的共享变量刷新到主内存中；
 2. 最后，线程B重新从主内存加载修改后的共享变量，从而看到被修改后的内容。
 
@@ -30,6 +32,7 @@ Java 内存模型（JMM）描述了在Java 语言中线程如何与主内存（M
 
 ## 2. 重排序
 在执行程序时为了提高性能，编译器和处理器常常会对指令做重排序。重排序分三种类型：
+
 1. 编译器优化的重排序。编译器在不改变单线程程序语义的前提下，可以重新安排语句的执行顺序。
 2. 指令级并行的重排序。现代处理器采用了指令级并行技术（Instruction-Level Parallelism， ILP）来将多条指令重叠执行。如果不存在数据依赖性，处理器可以改变语句对应机器指令的执行顺序。
 3. 内存系统的重排序。由于处理器使用缓存和读/写缓冲区，这使得加载和存储操作看上去可能是在乱序执行。
@@ -43,6 +46,7 @@ JMM属于语言级的内存模型，它确保在不同的编译器和不同的�
 现代处理器与内存存在较大的性能差异，以主频为3GHZ的cpu为例，cpu访问一次内存时间在10~100ns内，但cpu  在100ns内可以执行1200条指令（假定一个时钟周期可以同时执行4条指令，一个时间周期为0.3ns）。因此，现代处理器在内存之间引入了多级的缓存结构，同时为了提高指令的执行效率，在cpu 寄存器与缓存之间引入了读/写缓冲区。写缓冲区可以保证指令流水线持续运行，它可以避免由于处理器停顿下来等待向内存写入数据而产生的延迟。同时，通过以批处理的方式刷新写缓冲区，以及合并写缓冲区中对同一内存地址的多次写，可以减少对内存总线的占用。读缓冲区可以缓存当前指令读取的数据，实现cpu异步读取数据，提高cpu的吞吐率。以Intel x86 CPU （2012 Sandy Bridge）为例，如下图所示：
 ![memory-heirarchy](/images/memory-heirarchy.png "memory-heirarchy")
 其内部组成包括：
+
 1. 寄存器：在每个cpu 核心上，有160个用于整数和144个用于浮点的寄存器单元。访问这些寄存器只需要一个时钟周期，这构成了对执行核心来说最快的内存。编译器会将本地变量和函数参数分配到这些寄存器上。当使用超线程技术（ hyperthreading ）时，这些寄存器可以在超线程协同下共享。
 2. 读写缓冲区：读写缓存区包含64个load 缓冲条目和36个的store 缓冲条目。这些缓冲区用于记录等待缓存子系统时正在执行的操作。store 缓冲区保存将要写到L1 缓存的数据。load 缓冲区保存正要被寄存器读取的数据。由于读/写缓存仅对当前cpu 核心可见，这会造成指令的重排序，需要通过内存屏障来保证其执行顺序。
 3. L1 & L2 缓存：L1和L2 是一个本地核心内的缓存，它们在大小和速度上存在差异。
@@ -53,9 +57,12 @@ JMM属于语言级的内存模型，它确保在不同的编译器和不同的�
 在上文讲到的多级缓存系统中，L1,L2,L3级缓存与主内存之间一致性一般是通过Cache Conherence技术来实现的，Intel 使用MESIF协议，AMD 使用 MOESI，在这里不再描述，我们假定：一旦内存数据被推送到L1 缓存，就会有消息协议来确保所有的缓存会对所有的共享数据同步并保持一致。
 
 现在我们来分析引入读写缓冲区带来的问题，先看下两者的作用：
+
 > When a store is issued to the out-of-order core for renaming and scheduling, an entry in the store buffer is allocated (in-order) for the address and the data. The store buffer will hold the address and data until the instruction has retired and the data has been written to the L1 cache.
 
+
 > Analogously, when a load is issued, an entry in the load buffer is reserved for the address. However, loads must also compare the load address against the contents of the entire store buffer to check for aliasing with older stores. If the load address matches an older store, then the load must wait for the older store to complete to preserve the dependency. Most x86 processors optimize this further, by allowing the store to forward data to the load without accessing the cache. The load buffer entry can be released, once the instruction has retired and the load data is written into the register file.
+
 
 > Because of the strong x86 ordering model, the load buffer is snooped by coherency traffic. A remote store must invalidate all other copies of a cache line. If a cache line is read by a load, and then invalidated by a remote store, the load must be cancelled, since it potentially read invalid data. The x86 memory model does not require snooping the store buffer.
 
@@ -112,6 +119,7 @@ StoreLoad Barriers是一个“全能型”的屏障，它同时具有其他三�
 ## 6. happen-before
 JMM 使用happens-before 的概念来阐述操作之间的内存可见性，如果一个操作执行的结果需要对另一个操作可见，那么这两个操作之间必须要存在happens-before 关系。这里提到的两个操作既可以是在一个线程之内，也可以是在不同线程之间。
 与程序员密切相关的happens-before 规则如下：
+
 1. 程序顺序规则：一个线程中的每个操作，happens-before 于该线程中的任意后续操作。
 2. 监视器锁规则：对一个监视器锁的解锁，happens-before 于随后对这个监视器锁的加锁。
 3. volatile变量规则：对一个volatile域的写，happens-before 于任意后续对这个volatile域的读。

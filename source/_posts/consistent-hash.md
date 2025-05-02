@@ -6,6 +6,7 @@ tags:
 - 一致性哈希算法
 - 哈希算法
 categories:
+
 - 数据结构与算法
 ---
 
@@ -13,6 +14,7 @@ categories:
 在分布式服务中，往往有这样的场景：将某个用户或某台机器的请求负载路由到固定的某台服务器上。简单的做法直接是使用哈希算法，**h = hash(key) % N** ，该算法的核心思想是：将服务器编号，使用哈希算法取根据某类请求参数key（用户id或IP）计算出一个哈希值，再对该哈希值用服务器数据N进行取余（%）操作，从而得到服务器编号。使用该算法有一个问题，就是服务器数据数目（N）增加中或减少的时候，h的值都会被改变，即请求会负载到新的服务器上，有可能会导致状态数据的失效。有没有一种算法，既可以将同一请求负载到同一台服务器上，又可以在服务器增加或减少的时候将请求的变更控制在一定的范围内，所以提出了一致性哈希算法。
 
 一致性哈希算法（Consistent Hashing）最早在论文《Consistent Hashing and Random Trees: Distributed Caching Protocols for Relieving Hot Spots on the World Wide Web》中被提出，其原理如下：
+
 > 一致性哈希算法将整个哈希值（整数）空间组织成一个0~2^32-1的虚拟哈希环，首先，服务器按照名称（或编号）取哈希，并将该哈希值放置在哈希环上，然后再对key取哈希，按照随时针方向查找离该值最近的服务器结点哈希值，从而完成key与服务器的匹配映射工作。
 
 通过一致性哈希算法，服务器的增加或减少只会影响该服务器周围的请求，不会扩大到整个哈希环，从而保证算法的可扩展性。
@@ -25,6 +27,7 @@ categories:
 在一致性哈希算法中，哈希算法是一个重要的组成部分，它将服务器结点和请求字符串转换为一个整数，如何选择一个好的哈希算法？评判一个哈希算法的标准是什么？
 
 哈希算法大致有两种类型：加密哈希算法和非加密哈希算法，加密哈希算法为了防止攻击者找出碰撞而设计的，它的速度较慢。非加密哈希算法将字符串作为输入，通过计算输出一个整数，理想的哈希算法有一个特性：输出非常均匀分布在可能的输出域，特别是当输入非常相似的时候。可以将哈希算法大致分为三代：
+
 - 第一代：SHA-1（1993），MD5（1992），CRC（1975），Lookup3（2006）
 - 第二代：MurmurHash（2008）
 - 第三代：CityHash， SpookyHash（2011）
@@ -32,6 +35,7 @@ categories:
 其中SHA-1和MD5属于非加密哈希算法，其它都是非加密哈希算法，在一致性哈希算法中，主要用的是非加密哈希算法。除了以上的算法，还有一些算法没有列出，如JDK中hashCode使用的算法，另外，还有专门针对一致性哈希算法设计的哈希算法，如Ketama，也得到了广泛的运用。
 
 在一致性哈希算法的使用场景中，有几个比较重要的算法，单独说明一下：
+
 - MurmurHash 算法：高运算性能，低碰撞率，由 Austin Appleby 创建于 2008 年，现已应用到 Hadoop、libstdc++、nginx、libmemcached 等开源系统。2011 年 Appleby被Google雇佣，随后Google推出其变种的CityHash算法。官方只提供了C语言的实现版本。Java体系中，Guava，Redis，Memcached，Cassandra，HBase，Lucene都在使用它。
 - FNV算法：全名为Fowler-Noll-Vo算法，是以三位发明人Glenn Fowler，Landon Curt Noll，Phong Vo 的名字来命名的，最早在 1991 年提出。特点和用途：FNV 能快速 hash 大量数据并保持较小的冲突率，它的高度分散使它适用于hash一些非常相近的字符串，比如URL，hostname，文件名，text，IP 地址等。
 - Ketama 算法：Ketama不仅提供了一个哈希算法，更是提供了一套一致性哈希算法的实现，在Dubbo及Memcached中使用了该算法。
@@ -310,8 +314,10 @@ public class ConsistentHashLoadBalancer implements LoadBalancer{
 在该算法中，使用TreeMap的ceilingEntry方法返回离key的哈希值最近的服务器。
 
 除了上面的一致性哈希算法的实现，还有一种实现，即Ketama算法，它不仅仅是一个哈希算法，更是一套完整的一致性哈希算法，在memcached中，其介绍如下：
+
 > Ketama is an implementation of a consistent hashing algorithm, meaning you can add or remove servers from the memcached pool without causing a complete remap of all keys.
 Here’s how it works:
+
 * Take your list of servers (eg: 1.2.3.4:11211, 5.6.7.8:11211, 9.8.7.6:11211)
 * Hash each server string to several (100-200) unsigned ints
 * Conceptually, these numbers are placed on a circle called the continuum. (imagine a clock face that goes from 0 to 2^32)

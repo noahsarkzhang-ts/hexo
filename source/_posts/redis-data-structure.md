@@ -6,6 +6,7 @@ tags:
 - redis
 - 数据结构
 categories: 
+
 - 缓存
 ---
 
@@ -34,6 +35,7 @@ struct sdshdr {
 
 ### 1.3 实例
 ![sds](/images/sds.jpg "SDS")
+
 - len：值为5，表示保存了5个字节长度的内容；
 - free：值为5，表示这个SDS有5个字节的未分配的空间；
 - buf：char类型的数组，最后一个字节存储了空字符'\0'，表示字符串结尾，这种做法遵循了C语言的规则，所以实际的长度应该是len+1，只不过系统帮我们添加了空字符。
@@ -41,6 +43,7 @@ struct sdshdr {
 ### 1.4 内存分配机制
 通过未使用空间，SDS通过空间预分配和惰性空间释放两种机制来优化内存的使用。
 #### 1.4.1 空间预分配
+
 - 初始是按需分配，len为实际长度，free为零；
 - 需要修改SDS时，如果SDS的长度（len的值）小于1MB，那么Redis分配和len同样大小的未使用空间，即free=len；如果SDS的长度大于等于1MB，那么将会分配1MB的未使用空间，即free=1MB。
 
@@ -48,6 +51,7 @@ struct sdshdr {
 惰性空间释放用于SDS字符串缩短时，Redis不会释放多余的剩余空间，字符串会从头开始存储，将剩余的未使用空间的长度存放到free字段。
 
 ### 1.5 特点
+
 - 常数复杂度获取字符串长度；
 - 使用长度len字段，杜绝缓冲区溢出；
 - 使用free字段，结合内存预分配策略，可以减少内存分配次数；
@@ -110,6 +114,7 @@ typedef struct list {
 ### 3.2 定义
 字典底层是基于哈希表来实现的。
 #### 3.2.1 哈希表
+
 1. 哈希节点
 ```c
 typedef struct dictEntry {
@@ -130,6 +135,7 @@ typedef struct dictEntry {
 ```
 
 key字段保存着键值对中的键，而v字段键值对中的值，其值可以是一个指针，或者是一个uint64_t整数，又或者是一个int64_t整数。
+
 
 2. 哈希表
 ```c
@@ -228,8 +234,10 @@ typedef struct zskiplistNode {
 
 } zskiplistNode;
 ```
+
 1. 层：跳跃表节点的level数组可以包含多个元素，每一个元素都包含一个指向其它结点的指针，程序通过这些层为加快访问其它结点的速度，一般来说，层的数量越多，访问其它结点的速度就越快。
 每次创建一个新结点的时候，Redis都根据冥次定律（power law,越大的数出现的概念越小）随机生成一个介于1和32之间的值作为level分组的大小，这个大小就是层的“高度”。
+
 2. 前进指针：每个层都有一个指向表尾方向的前进指针，用于从表头向表尾方向访问结点。
 3. 跨度：用于记录两个节点间的距离。
 4. 后退指针：用于从表尾向表头方向访问结点。
@@ -274,6 +282,7 @@ typedef struct intset {
     int8_t contents[];
 } intset;
 ```
+
 1. encoding：表示存储的整数类型，有int16_t,int32_t和int64_t，即16位、32位及64位的有符号整数。
 2. length：表示元素的数量。
 3. contents：字节数组，根据encoding的值使用不同的字节数来表示整数，如：int16_t使用2字节，int32_t使用4字节，int64_t使用8字节，另外，contents同时只会存储一种类型的整数。
@@ -284,6 +293,7 @@ typedef struct intset {
 
 ### 5.4 升级
 当新增加一个元素到整数集合中时，如果新元素的值超出了当前类型的范围时，就要对整数集合进行升级操作，执行的步骤如下:
+
 1. 根据新元素的类型，扩展contents数组（分配一个新数组），并为新元素分配空间；
 2. 将之前的数组元素转换为新元素的类型，并放置在数组中合适的位置上，保持元素的顺序不变；
 3. 将新元素添加到数组里面。
@@ -297,11 +307,13 @@ typedef struct intset {
 另外，当一个哈希键只包含少量键值对，且每个键值对的键和值要么是小整数值，要么是长度比较短的字符串，那么Redis就会使用压缩列表来做哈希键的底层实现。
 ### 6.2 定义
 Redis官方对于ziplist的定义是：
+
 > The ziplist is a specially encoded dually linked list that is designed to be very memory efficient. It stores both strings and integer values, where integers are encoded as actual integers instead of a series of characters. It allows push and pop operations on either side of the list in O(1) time.
 
 ziplist是一个经过特殊编码的双向链表，它的设计目标就是为了提高存储效率。ziplist可以用于存储字符串或整数，其中整数是按真正的二进制表示进行编码的，而不是编码成字符串序列。它能以O(1)的时间复杂度在表的两端提供push和pop操作。
 ziplist的数据类型，没有使用结构体struct来表达，就是简单的unsigned char *。这是因为ziplist本质上就是一块连续内存，内部组成结构又是一个高度动态的设计（变长编码），也没法用一个固定的数据结构来表达。
 一个压缩列表可以包含任意多个节点（entry），每个节点可以保存一个字节数组或者一个整数值，其结构如下：
+
 
 1. zlbytes: 32bit，表示ziplist表占用的字节总数（也包括zlbytes本身占用的4个字节）；
 2. zltail: 32bit，表示ziplist表中最后一项（entry）在ziplist中的偏移字节数。zltail的存在，使得可以很方便地找到最后一项（不用遍历整个ziplist），从而可以在ziplist尾端快速地执行push或pop操作；
@@ -340,6 +352,7 @@ ziplist的数据类型，没有使用结构体struct来表达，就是简单的u
 
 ### 6.3 连锁更新
 每一节点的previous_entry_length属性都记录了前一节点的长度：
+
 - 如果前一个节点的长度小于254字节，那么previous_entry_length需要用1个字节来保存长度值；
 - 如果前一个节点的长度大于等于254字节，那么previous_entry_length需要用5个字节业保存长度值。
 如果压缩列表里只好有多个连续的、长度介于250字节至253字节之间的节点，在添加或删除结点时，可能会引发连锁更新，即引起多次的空间扩展操作。
@@ -351,6 +364,7 @@ ziplist的数据类型，没有使用结构体struct来表达，就是简单的u
 
 ----
 [1]:http://zhangtielei.com/posts/blog-redis-ziplist.html
+
 
 1.Redis设计与实现
 

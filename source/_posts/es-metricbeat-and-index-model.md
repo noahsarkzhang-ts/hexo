@@ -7,6 +7,7 @@ tags:
 - metric
 - kibana
 categories:
+
 - Elasticsearch
 ---
 
@@ -17,7 +18,6 @@ categories:
 ## 概述
 
 Metricbeat 是一个轻量型指标采集器，用于从系统和服务收集指标。Metricbeat 能够以一种轻量型的方式，输送各种系统和服务统计数据，从 CPU 到内存，从 Redis 到 Nginx，不一而足。其流程如下所示：
-
 ![metricbeat-flow](/images/es/metricbeat-flow.jpg "metricbeat-flow")
 
 Metric 数据采集的方式与 ELK 的流程是一致的，差别只是采集工具是 Metricbeat.
@@ -301,7 +301,6 @@ Metric 上报的数据格式如下所示：
 ## 查看 Metric 监控
 
 可以在 `kibana` dashboard 查看监控数据。
-
 ![kibana-metric-dashboard](/images/es/kibana-metric-dashboard.jpg "kibana-metric-dashboard")
 
 可以在三种视图间切换：System Overview, Host Overview, Containers overview.
@@ -364,13 +363,11 @@ Metricbeat 所有的 Metric 数据存储在一张表中，预置了 3949 个字�
 ### 稀疏数据
 
 在 Elasticsearch 6.0 (Lucene 7.0 ) 之前的版本中，Doc values 适合存储紧凑性的数据，这些数据所有字段都有值，对于稀疏数据（有很多空值），需要额外的空间来维护这些空值，会造成存储空间的浪费，也会影响索引的速度。什么类型的数据是稀疏数据呢？如下图所示：
-
 ![sparse-data](/images/es/sparse-data.jpg "sparse-data")
 
 如果文档中的字段只有很少一部分有值，那这个字段可以称为稀疏数据，如 `middle`, `city` , `state`.
 
 在 Lucene 7.0 (Elasticsearch 6.0 配套的 Lucene 版本) 内部使用迭代器方式遍历数据，它可以更有效的使用存储空间。
-
 ![docvalus-iteerator](/images/es/docvalus-iteerator.jpg "docvalus-iteerator")
 
 如上图所示，使用随机访问方式遍历 doc values(Elasticsearch 6.0 之前版本使用的方式), 需要维护空值。而迭代器方式则不需要存储空值，可以有效地节省存储空间。

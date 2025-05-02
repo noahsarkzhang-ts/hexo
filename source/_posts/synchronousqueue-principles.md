@@ -7,6 +7,7 @@ tags:
 - 同步队列
 - 线程池
 categories:
+
 - Java基础
 ---
 
@@ -164,12 +165,12 @@ public E take() throws InterruptedException
 操作序列如下：
 
 **1、TransferStack初始状态**
-
 ![transferstack-null](/images/transferstack-null.jpg "transferstack-null")
 栈顶元素head初始状态指向NULL。
 
 **2、生产者线程t1执行 put(task1)操作**
 TransferStack栈中没有元素，构造SNode结点SNode1，结点内容如下：
+
 - mode : 1，表示为数据模式；
 - item : task1，表示需要传递给消费者的数据；
 - waiter : t1，表示生产者线程；
@@ -182,6 +183,7 @@ TransferStack栈中没有元素，构造SNode结点SNode1，结点内容如下�
 **3、生产者线程t2执行 put(task2)操作**
 
 生产者线程t2执行的操作是生产数据，与TransferStack栈顶元素的mode是一致的，构造新的结点SNode2，并将该结点压入栈首，内容如下：
+
 - mode : 1，表示为数据模式；
 - item : task2，表示需要传递给消费者的数据；
 - waiter : t2，表示生产者线程；
@@ -189,12 +191,12 @@ TransferStack栈中没有元素，构造SNode结点SNode1，结点内容如下�
 - next : SNode1，表示下一个结点。
 
 最后阻塞t2线程，等待消费者线程唤醒。
-
 ![transferstack-2](/images/transferstack-2.jpg "transferstack-2")
 
 **4、消费者线程t3执行 take()操作**
 
 消费者线程t3执行REQUEST操作，与TransferStack栈顶元素的mode是互补（FULFILLING）的，此时也会构造一个新结点SNode3，加入到栈中，内容如下：
+
 - mode : 3，DATA与FULFILLING取或操作，即1 | 2 = 3, 表示正在进行匹配操作；
 - item : null，请求（REQUEST）操作没有数据；
 - waiter : t3，表示生产者线程；
@@ -202,11 +204,9 @@ TransferStack栈中没有元素，构造SNode结点SNode1，结点内容如下�
 - next : SNode2，表示下一个结点。
 
 SNode3压入栈顶之后，同时尝试修改与之匹配的SNode2结点，将SNode2中的match字段修改为SNode3，表示与之匹配的结点，此时栈的状态如下所示：
-
 ![transferstack-3](/images/transferstack-3.jpg "transferstack-3")
 
 完成匹配操作之后，t3线程LockSupport.unpark方法唤醒t2线程，并将SNode3及SNode2弹出栈，其状态如下所示：
-
 ![transferstack-4](/images/transferstack-4.jpg "transferstack-4")
 
 最后消费者t3线程拿到生产者线程生产的数据task2，生产者线程t2被唤醒继续执行后续流程。
@@ -249,13 +249,13 @@ QNode的内存布局如下所示：
 以上章的操作顺序来请求数据。
 
 **1、TransferQueue初始状态**
-
 ![transferqueue-null](/images/transferqueue-null.jpg "transferqueue-null")
 
 构建一个Dummy Node压入队列，当head,tail指向同一个结点表示队列为空。
 
 **2、生产者线程t1执行 put(task1)操作**
 TransferQueue队列为空，构造QNode结点QNode1，结点内容如下：
+
 - isData : true，表示为数据模式；
 - item : task1，表示需要传递给消费者的数据；
 - waiter : t1，表示生产者线程；
@@ -267,19 +267,18 @@ TransferQueue队列为空，构造QNode结点QNode1，结点内容如下：
 **3、生产者线程t2执行 put(task2)操作**
 
 生产者线程t2执行的操作是生产数据，与TransferQueue队首元素的isData是一样的，表示模式是一致的，构造新的结点PNode2，并将该结点压入队尾，内容如下：
+
 - isData : true，表示为数据模式；
 - item : task2，表示需要传递给消费者的数据；
 - waiter : t2，表示生产者线程；
 - next : null，表示下一结点为空。
 
 最后阻塞t2线程，等待消费者线程唤醒。
-
 ![transferqueue-2](/images/transferqueue-2.jpg "transferqueue-2")
 
 **4、消费者线程t3执行 take()操作**
 
 消费者线程t3执行REQUEST操作，跟TransferQueue队首元素的模式是互补（FULFILLING）的，此时与TransferStack的操作不一样，不用生成新结点压入队列。它执行了以下操作：1）将PNode1(队首)元素设置为参数e，在这里是null，完成数据的交接（如果是put操作的话，传递的就是真实的数据）；2）将head指针指向PNode1，PNode1作为新的Dummy Node（等于将PNode1移除队列）；3）唤醒PNode1对应的线程，即t1。
-
 ![transferqueue-3](/images/transferqueue-3.jpg "transferqueue-3")
 
 最后t3从PNode1中拿出数据task1并返回，生产者线程t1被唤醒继续执行后续流程。
@@ -382,13 +381,17 @@ E transfer(E e, boolean timed, long nanos) {
 ```
 
 代码主要分为三种情况：
+
 1. 如果当前的栈是空的，或者包含与请求节点模式相同的节点，那么就将这个请求的节点作为新的栈顶节点，等待被下一个请求的节点匹配，最后会返回匹配节点的数据或者null，如果被取消则会返回null。
 
+
 2. 如果当前栈不为空，并且请求的节点和当前栈顶节点模式互补，那么将这个请求的节点的模式变为FULFILLING，然后将其压入栈中，和互补的节点进行匹配，完成匹配之后将两个节点一起弹出，并且返回交易的数据。
+
 
 3. 如果栈顶已经存在一个模式为FULFILLING的节点，说明栈顶的节点正在进行匹配，那么就帮助这个栈顶节点快速完成匹配，然后继续匹配。
 
 主要方法说明：
+
 1. casHead : 通过CAS操作将nh设置为新的栈顶结点；
 ```java
 boolean casHead(SNode h, SNode nh) {
@@ -396,6 +399,7 @@ boolean casHead(SNode h, SNode nh) {
         UNSAFE.compareAndSwapObject(this, headOffset, h, nh);
 }
 ```
+
 2. awaitFulfill : 自旋或阻塞一个节点，直到找到一个匹配的结点；
 ```java
 SNode awaitFulfill(SNode s, boolean timed, long nanos) {
@@ -432,6 +436,7 @@ SNode awaitFulfill(SNode s, boolean timed, long nanos) {
     }
 }
 ```
+
 
 3. tryMatch : 尝试匹配结点，如果匹配成功则唤醒结点对应的线程
 ```java
@@ -490,16 +495,20 @@ public void execute(Runnable command) {
 }
 ```
 提交任务有在三个步骤：
+
 1. 如果当前工作线程数小于“核心线程数”，则创建一个工作线程来执行task，在这里，由于“核心线程数”等于0，会跳过这个步骤，执行第2步；
 2. 将任务加入到工作队列（SynchronousQueue）中，如果添加成功表示将任务交付给工作线程了，如果没有成功则执行第3步；
 3. 如果加入到工作队列失败，会尝试创建一个工作线程来执行任务，如果工作线程数小于最大线程数（Integer.MAX_VALUE）,正常情况下，工作线程会创建成功，如果创建失败则会执行“拒绝策略”。
 
 结合SynchronousQueue，我们来分析下线程池的执行流程：
+
 1. 由于“核心线程数”等于0，会跳过第1个步骤；
 2. 在第2步中，提交任务采用的是offer操作，在上面的内容我们提到，offer尝试将数据（任务）交给匹配的线程：
+
 - 如果有匹配的工作者线程，交付成功；
 - 如果匹配不成功，返回false，不会阻塞调用者线程；
 在这里分为两种情况，1）刚开始，没有工作线程，SynchronousQueue队列为空，offer操作失败，继续执行第3步；2）执行一段时间后，SynchronousQueue中有工作线程，数据交付成功，直接返回；
+
 3. 交付失败后，会尝试新建一个工作线程来执行任务，由于最大线程数设置为Integer.MAX_VALUE，线程都会创建成功，而不会被拒绝。在这里，线程数没有做限制，存在线程创建过多导致内存溢出的风险。
 
 分析了提交任务（offer）,再来看获取任务的流程，获取任务的流程在工作线程的执行代码中，工作线程一直会从SynchronousQueue中获取任务，如果空闲时间超过60S则会回收该工作线程。我们来看下工作线程中获取任务的代码：

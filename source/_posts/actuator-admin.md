@@ -7,6 +7,7 @@ tags:
 - admin
 - 监控系统
 categories:
+
 - Springboot
 ---
 
@@ -18,6 +19,7 @@ Actuator 提供了查询服务内部状态的 Endpoints，Springboot Admin 则�
 
 Spring Boot Admin 是一个管理和监控 Spring Boot 应用程序的开源项目，在对单一应用服务监控的同时也提供了集群监控方案，支持通过 eureka、consul、zookeeper 等注册中心的方式实现多服务监控与管理。Spring Boot  admin UI 部分使用 Vue JS 将数据展示在前端。
 Spring Boot Admin分为服务端（spring-boot-admin-server）和客户端（spring-boot-admin-client）两个组件：
+
 - spring-boot-admin-server: 采集 actuator 端点数据显示在 spring-boot-admin-ui 上；
 - spring-boot-admin-client：对 Actuator 进行封装，提供应用系统的性能监控数据。此外，还可以通过 spring-boot-admin 动态切换日志级别、导出日志、导出 heapdump、监控各项性能指标等。
 
@@ -65,6 +67,7 @@ Spring Boot Admin分为服务端（spring-boot-admin-server）和客户端（spr
 ```
 
 **说明：**
+
 - spring-boot-admin-starter-server: Springboot admin server 包；
 - spring-boot-starter-security: Spring secutiry, 用于安全认证；
 - Springboot 与 Admin 版本需要匹配，否则会报错。
@@ -149,11 +152,9 @@ spring:
 ### 登陆 Springboot Admin Server
 
 启动 Springboot Admin Server, 进入如下的登陆界面。
-
 ![springboot-admin-login](/images/spring-cloud/springboot-admin-login.jpg "springboot-admin-login")
 
 此时因为没有服务接入，登陆成功之后，显示没有服务。
-
 ![springboot-admin-login](/images/spring-cloud/springboot-admin-login-null.jpg "springboot-admin-login")
 
 ## 引入 Srpingboot Admin Client
@@ -207,6 +208,7 @@ spring:
 ```
 
 **配置项：**
+
 - spring.boot.admin.client.username: Springboot admin server 用户名；
 - spring.boot.admin.client.password: Springboot admin server 密码；
 - spring.boot.admin.client.url: Springboot admin server url;
@@ -222,6 +224,7 @@ spring:
 ![springboot-admin-login](/images/spring-cloud/springboot-admin-instance-details.jpg "springboot-admin-instance-details")
 
 ### 小结
+
 - 为了避免对 Springboot Actuator endpoints 的非法访问，可以在服务中引入 Spring Security; 
 - 服务接入 Springboot Admin Server 之后，可以方便对接其它的监控功能，如邮箱或短信告警功能，可根据需要进行对接。
 

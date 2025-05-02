@@ -7,6 +7,7 @@ tags:
 - apm
 - 调用链
 categories:
+
 - Elasticsearch
 ---
 
@@ -17,16 +18,17 @@ categories:
 ## 概述
 
 Apache Skywalking 专门为微服务架构和云原生架构系统而设计并且支持分布式链路追踪的 APM 系统。Apache Skywalking 通过加载探针的方式收集应用调用链路信息，并对采集的调用链路信息进行分析，生成应用间关系和服务间关系以及服务指标。Apache Skywalking 目前支持多种语言，其中包括 Java，.Net Core，Node.js 和 Go 语言。其架构如下所示：
-
 ![skywalking](/images/es/skywalking.jpg "skywalking")
 
 整个系统分为三部分：
+
 - agent：采集 tracing（调用链数据）和 metric（指标）信息并上报；
 - OAP：收集 tracing 和 metric 信息通过 analysis core 模块将数据放入持久化容器中（ES，H2（内存数据库），mysql等等），并进行二次统计和监控告警；
 - webapp：前后端分离，前端负责呈现，并将查询请求封装为 graphQL 提交给后端，后端通过 ribbon 做负载均衡转发给 OAP 集群，再将查询结果渲染展示。
 
 ## 安装
 **1. 版本约定**
+
 
 - OS: centos 7;
 - Skywalking: 8.7.0 for es7; 
@@ -94,7 +96,6 @@ $ bin/webappService.sh
 ```
 
 SkyWalking UI 默认端口是 `8080`, 可以通过 `webapp/webapp.yaml` 进行修改，在这里我们修改为 `8081`. 输入地址 `http://127.0.0.1:8081` 便可访问 Skywalking.
-
 ![skywalking-dashboard](/images/es/skywalking-dashboard.jpg "skywalking-dashboard")
 
 
@@ -120,11 +121,11 @@ $ java -jar -javaagent:C:/Java/skywalking-es7-8.6.0/agent/skywalking-agent.jar -
 ```
 
 其中：
+
 - skywalking.agent.application_code: 配置应用名称；
 - skywalking.collector.servers: 配置 Collector 地址。
 
 另外，在开发联调阶段，也可以直接在 idea 中进行设置，如下图所示：
-
 ![skywalking-idea](/images/es/skywalking-idea.jpg "skywalking-idea")
 
 ## 日志采集

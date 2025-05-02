@@ -6,6 +6,7 @@ tags:
 - MQTT
 - 持久化
 categories:
+
 - MQTT
 ---
 
@@ -16,6 +17,7 @@ categories:
 ## 概述
 
 根据存活时间的长短，可以将数据分为两种类型：
+
 1. 会话数据：跟 `Client` 会话同周期，随着 `Client` 退出而销毁，如会话状态、发送/接收中的数据、`Will` 数据及订阅数据；
 2. 静态数据：需要长时间存在的数据，如用户及 `QoS 1&2` 级别的数据。
 
@@ -24,6 +26,7 @@ categories:
 ## 会话数据
 
 在 `MQTT broker` 中，会话数据包括以下类型：
+
 - 会话信息及状态；
 - 发送/接收中的 `QoS 1&2` 数据；
 - `Topic` 消息消费偏移量；
@@ -73,6 +76,7 @@ public class StoredSession {
 ```
 
 **说明：**
+
 - clean: 表明会话是否保持，如果不保持，则每一次登陆都是一个新的会话；
 - serverId: 表明登陆的 `Broker id`, 客户端重新登陆之后，可能不在之前的 `Broker` 上。
 
@@ -586,6 +590,7 @@ public class StoredMessage {
 }
 ```
 **说明：**
+
 - packageId: 消息 id, 在一次会话中是惟一的，同一个 `Client` 不同会话间, packageId 有可能会重复；
 - offset：全局消息 id, 在同一个 `Topic` 中, `offset` 是惟一的，不会重复。
 

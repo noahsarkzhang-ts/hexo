@@ -5,6 +5,7 @@ updated: 2023-01-01 18:53:49
 tags:
 - will
 categories:
+
 - MQTT
 ---
 
@@ -15,7 +16,6 @@ MQTT 提供了遗嘱 Will 功能，可以在终端异常下线时，向特定的
 ## 概述
 
 `Will` 功能可以在 `CONNECT` 控制报文中进行设置，如下所示：
-
 ![mqtt-connect-flag](/images/mqtt/mqtt-connect-flag.jpg "mqtt-connect-flag")
 
 `Will` 相关的标志位有三个，分别是：`Will Flag`,`Will QoS`,`Will Retain`, 它们的含义如下：
@@ -24,6 +24,7 @@ MQTT 提供了遗嘱 Will 功能，可以在终端异常下线时，向特定的
 
 遗嘱标志（Will Flag） 设置为 1, 表示设置 `Will` 功能，那么在有效载荷中必须包含 `Will Topic` 和 `Will Message` 字段。在终端异常下线时，便向 `Will Topic` 发送 `Will Message`. 如果服务端收到 DISCONNECT 报文，则不会触发 `Will` 功能，将会清除 `Will` 数据。
 遗嘱消息发布的条件， 包括但不限于：
+
 
 - 服务端检测到了一个 I/O 错误或者网络故障；
 - 客户端在保持连接（Keep Alive）的时间内未能通讯；
@@ -40,6 +41,7 @@ MQTT 提供了遗嘱 Will 功能，可以在终端异常下线时，向特定的
 
 如果遗嘱标志被设置为 0， 遗嘱保留（Will Retain） 标志也必须设置为 0.
 如果遗嘱标志被设置为 1：
+
 - 如果遗嘱保留被设置为 0， 服务端必须将遗嘱消息当作非保留消息发布；
 - 如果遗嘱保留被设置为 1， 服务端必须将遗嘱消息当作保留消息发布。
 

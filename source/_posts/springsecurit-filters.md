@@ -8,6 +8,7 @@ tags:
 - UsernamePasswordAuthenticationFilter
 - FilterSecurityInterceptor
 categories:
+
 - Springboot
 ---
 
@@ -79,17 +80,19 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
 ```
 
 在上面的代码中，引入了两份配置，一个是引入 Spring Security 本身的配置，另外一份是认证中心的配置。在 Spring Security 配置中，配置了两份的 endponit 的访问权限:
+
 - 忽略的 endponit ：`/login.html, /css/**,  /js/**, /images/**` , 这些 url 主要是静态资源，不需要授权；
 - 需要权限认证的 endponit ：`/login, /oauth/authorize`, 这两个 endpoint 的访问需要经过 Spring Security 授权（注：/login 是登陆接口，直接放行）。
 
 在认证中心的配置中，需要对 Oauth2 相关的 endpoint 授权：
+
 - Oauth2 endpoint : `/oauth/token, /oauth/token_key, /oauth/check_token`, 这些 endpoint 的访问需要认证服务器进行授权。
 
 **注：** Oauth2 endpoint 的 endponit 配置在 AuthorizationServerSecurityConfiguration 类中。
 
  针对这些 endpoint, Spring Security 会生成一个系列的 Fileter 去处理，如下图所示：
-
 ![springsecurity-filters](/images/spring-cloud/springsecurity-filters.jpg "springsecurity-filters")
+
 
 1. 顶层是 DelegatingFilterProxy 类，它是 Spring Security 的入口类，它拦截所有的请求进行安全校验；
 2. DelegatingFilterProxy 类的业务逻辑委托给名为 springSecurityFilterChain 的 FilterChainProxy 类进行处理；
@@ -102,6 +105,7 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
 **<font color='red'>总上所述：一个忽略的 endponit 生成一个 DefaultSecurityFilterChain，一个 HttpSecurity 对象生成一个 DefaultSecurityFilterChain，在上面的实例中，一共分生成 6 个 DefaultSecurityFilterChain, 即 6 条处理流程。</font>**
 
 以 Spring Security 配置为例，它生成的 Filter 列表如下所示：
+
 
 - WebAsyncManagerIntegrationFilter: 将 SecurityContext 与 WebAsyncManager 整合起来，使得在 Callable 中可以使用 SecurityContext, 从而可以在异步 Servlet 中使用 Spring Security; 
 - SecurityContextPersistenceFilter: 有两个功能：1）在每次请求前，向 SecurityContextHolder 中添加 SecurityContext 对象，在请求结束后再清空该对象；2）请求结束之后，向 Session 中添加  SecurityContext 对象，以便下次请求使用；
@@ -116,6 +120,7 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
 - **<font color='red'>FilterSecurityInterceptor：</font>**这个过滤器判断认证用户是否具备访问资源（url endpoint）的权限。
 
 在这里面，有几个 Filter 比较重要：
+
 - LogoutFilter: 处理登出请求，清除会话信息，并重定向到指定页面，默认页面是: /login?logout; 
 - UsernamePasswordAuthenticationFilter : 处理登陆请求，验证用户信息，并最终生成一个 Authentication 对象，里面包含了用户及权限信息；
 - RequestCacheAwareFilter: 一个请求如果未认证会跳转到登陆页面，登陆成功为继续之前的请求，而该 Filter 用来恢复之前的请求状态信息，包括 method, header,参数等等信息；
@@ -125,7 +130,6 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
 ## 加载 Filter
 
 上文分析了 Spring Security 的 Filter 整体结构，它们是怎么加载到系统中的？如下图为示，展示了与 Filter 加载相关的类。
-
 ![springsecurity-filters-config](/images/spring-cloud/springsecurity-filters-config.jpg "springsecurity-filters-config")
 
 ### 注册 DelegatingFilterProxy
@@ -158,6 +162,7 @@ public class SecurityFilterAutoConfiguration {
 	// ...
 }
 ```
+
 
 - <1> 处该自动配置依赖项目中 AbstractSecurityWebApplicationInitializer, SessionCreationPolicy 类的存在，这两个类是 Spring Security Jar 包中的类，只要引入  Spring Security, 即可触发自动配置；
 - <2> 处注册 DelegatingFilterProxy，它只是一个代理类，它依赖名为 springSecurityFilterChain 的 Filter, springSecurityFilterChain 才是真正地封装了业务逻辑。
@@ -231,6 +236,7 @@ public final class WebSecurity extends
 }
 
 ```
+
 
 - springSecurityFilterChain 对象是在 WebSecurityConfiguration 对象中生成并添加到 Spring 容器中，配置对象则是由 @EnableWebSecurity 注解引入的。开启 @EnableWebSecurity 会全局生成一个 WebSecurity 对象，最后由该对象生成 FilterChainProxy 类；
 - FilterChainProxy 的构建逻辑是在 WebSecurity 中进行的，FilterChainProxy 内部维护一个 DefaultSecurityFilterChain 对象列表，而 DefaultSecurityFilterChain 分为两类，一类是忽略的 url 都会生成一个包含 0 个 Filter 的 DefaultSecurityFilterChain 对象，该对象不会做任何拦截操作，等于直接放行，另外一类是安全认证的 Url, 此时它会生成包含一系列 Filter 的 DefaultSecurityFilterChain 对象，具体包括什么 Filter 操作则由 HttpSecurity 配置；
@@ -321,6 +327,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
+
 - <1> 处配置忽略的 url，每一个 url 在 WebSecurity 中都会生成一个 DefaultSecurityFilterChain 对象；
 - <2> 处配置 HttpSecurity 对象，每一个 WebSecurityConfigurerAdapter 对象都会生成一个 HttpSecurity 对象，一个 HttpSecurity 对象代表对一组 url 进行安全配置，在认证服务器中，会默认生成一个 WebSecurityConfigurerAdapter 对象，对 Oauth2 相关的 endponit 进行安全设置；
 - <3> 处配置 HttpSecurity 对象的 url 匹配器，表明`/login, /oauth/authorize` 受该 HttpSecurity 控制；
@@ -328,6 +335,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 - <5> 与 <6> 处则是修改 FormLoginConfigurer 对象的默认参数，在后续的文章中再详细介绍。
 
 总上所述，我们得出以下结论：
+
 1. HttpSecurity 对象的 RequestMatcher 由 requestMatchers 方法设置，默认是拦截所有的请求，用户可以自己设置；
 2. HttpSecurity 对象中的 Filter 列表由一系列的配置对象生成，而每一个配置对象代表了一个安全操作，一个安全操作则对应了一个或多个 Filter。
 
@@ -433,6 +441,7 @@ FilterSecurityInterceptor 过滤器由 `authorizeRequests()` 方法引入。
 ### 小结
 
 总上所述，我们可以得到以下结论：
+
 1. DelegatingFilterProxy 作为一切 Filter 的源头，它代理了 FilterChainProxy 类；
 2. FilterChainProxy 由 WebSecurity 对象构建生成，其配置对象是 WebSecurityConfigurerAdapter, 通过它我们可以自定义安全策略；
 3. DefaultSecurityFilterChain 是一组 Filter 组合，一般由 HttpSecurity 对象构建生成；
@@ -441,8 +450,8 @@ FilterSecurityInterceptor 过滤器由 `authorizeRequests()` 方法引入。
 ## 整体流程
 
 上文分析了 Spring Security 的整体结构及 Filter 的加载过程，这个章节我们将继续分析这些 Filter 如何协作来完成一个 endpoit 的安全检查工作。一个未认证的 oauth/authorize 接口请求需要经过如下图的流程，为了方便理解，这里省略了不重要的步骤，只留下了关键的环节。
-
 ![springsecurity-flow](/images/spring-cloud/springsecurity-flow.jpg "springsecurity-flow")
+
 
 - `oauth/authorize` 被 Spring Security 拦截，路由对应的 DefaultSecurityFilterChain 中，被 FilterSecurityInterceptor 处理，此时用户未登陆，抛出 AuthenticationException;
 - AuthenticationException 被 ExceptionTranslationFilter 捕获，在这里有两个工作：1) 将请求的信息封装成 RequestCache 对象，并保存到 Session, 以便登陆成功之后进行恢复；2）重定向到指定的登陆页面；

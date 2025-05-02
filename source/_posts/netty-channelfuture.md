@@ -8,6 +8,7 @@ tags:
 - ChannelFuture
 - Netty
 categories:
+
 - Netty
 ---
 
@@ -107,10 +108,10 @@ public class ChannelFutrue {
 
 ## 3. Netty 实现
 我们以 ServerBootstrap 中的 bind 方法为例，分析 ChannelFuture 在这个流程中的使用方式，bind 方法的主要流程如下所示（其中的实现细节在后续篇章介绍）：
-
 ![ChannelFuture-flow](/images/netty/ChannelFuture-flow.jpg "ChannelFuture-flow")
 
 在 bind 方法中主要包含在 4 个步骤：
+
 1. 生成 NioServerSocketChannel 对象；
 2. 将 NioServerSocketChannel 对象注册到 EventLoop 中；
 3. 执行 bind 操作；
@@ -232,6 +233,7 @@ private void register0(ChannelPromise promise) {
 **4、结果通知**
 
 结果通知主要包含两个操作：
+
 1. 设置处理结果，唤醒所有等待的线程；
 2. 调用注册到 ChannelFuture 中的监听器；
 

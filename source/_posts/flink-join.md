@@ -8,6 +8,7 @@ tags:
 - KeyedCoProcessFunction
 - CoProcessFunction 
 categories:
+
 - Flink
 ---
 
@@ -20,6 +21,7 @@ categories:
 要实现多流 low-level joing 操作，应用可以使用 `CoProcessFunction` 或 `KeyedCoProcessFunction`. 这些类使用 `processElement1(...) `,`processElement2(...)` 方法来处理不同的输入流，每股流的事件都会传给相应的方法来处理。
 
 可以使用以下的模式来实现 log-level join 操作：
+
 - 为每一个输入（每个流）创建一个 state 对象；
 - 收到事件之后更新对应的流状态；
 - 两股流中的事件都收到后，聚合状态变量并输出结果；
@@ -28,7 +30,6 @@ categories:
 ## Watermark 推进
 
 在多流操作中，`Watermark` 推进如下图所示：
-
 ![watermark](/images/flink/watermark.png "watermark")
 
 一个算子有多个上游算子（或多个输入多股流），其 `Watermark` 从多个上游算子输入的 `Watermark`中选择最小值，如果其中一股流或一个算子没有输入，则会阻塞算子的执行。
@@ -38,6 +39,7 @@ categories:
 在下面的例子中，采集出租车乘坐事件(TaxiRide) 和费用事件(TaxiFare), 根据 `rideId` 执行 join 操作。如果其中一个事件等待另一个事件超时 60S, 则执行超时逻辑，将事件输出到侧输出流中，供后续业务处理。
 
 实例的主要逻辑如下：
+
 - `TaxiRide` 代表了乘坐事件，包括乘坐 id (riderId), 事件类型及事件时间三个字段；
 - `TaxiFare` 代表了乘坐费用，包括乘坐 id (riderId), 费用及事件时间三个字段；
 - `RideFare` 代表了结果对象，包含了 `TaxiRide` 和 `TaxiFare` 两个对象；

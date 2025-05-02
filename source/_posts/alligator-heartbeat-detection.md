@@ -6,6 +6,7 @@ tags:
 - 心跳
 - heartbeat
 categories:
+
 - Alligator网关
 
 ---
@@ -18,6 +19,7 @@ categories:
 ## 2. 具体实现
 ### 2.1 客户端
 客户端主要包含两个操作：
+
 1. 借助 IdleStateHandler 触发一个连接空闲事件；
 2. 添加一个 Handler，捕获空闲事件，发送心跳包。
 

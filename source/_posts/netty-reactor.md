@@ -10,15 +10,16 @@ tags:
 - EventLoop
 - 事件循环
 categories:
+
 - Netty
 ---
 
 ## 1. 概述
 Reactor 模式是一种服务器网络编程模式，它根据网络数据接收的特点，将连接的建立、网络数据的读写分离，用 mainReactor 线程处理网络的连接，用 subReactor 处理数据的读写，同时为了有效利用 CPU 多核的优势，subActor 可以有多个。它的整体结构如下图所示：
-
 ![reactor](/images/netty/ractor.jpeg "reactor")
 
 **特点：**
+
 1. 客户端的所有连接请求统一由 mainReactor 线程处理，同时将收到请求转交 subReactor 处理；
 2. subReactor 线程处理连接的读写，为了实现处理的负载，可以有多个 subReactor，通过一定的算法分配网络连接；
 3. 考虑到连接的 I/O 读写比较耗时，为了提高吞吐量，读写操作可以交由线程池处理。
@@ -134,6 +135,7 @@ public class MainReactor implements Runnable {
 
 ```
 MainReactor 有几个主要的属性：
+
 1. Selector：Selector 对象，用于实现网络 I/O 事件的监听，它只监听网络请求事件；
 2. ServerSocketChannel：服务器套接字，用于接收网络请求；
 3. SelectorManager：用于分配 SocketChannel 到 subReactor，SelectorManager 存有多个 subReactor 对象。
@@ -470,6 +472,7 @@ protected MultithreadEventExecutorGroup(int nThreads, Executor executor,
 
 ```
 在 MultithreadEventExecutorGroup 构造函数中，主要做了三个工作：
+
 - 定义 EventLoop 中的线程执行器，每一个 EventLoop 都包含一个线程，其线程由 ThreadPerTaskExecutor 生成；
 - 初始化及生成 EventLoop 数组 ，newChild 方法由子类来实现，不同的模式有不同的实现；
 - 定义 channel 的分配策略，根据 EventLoop 的数量有不同的实现。
@@ -533,10 +536,10 @@ private static final class PowerOfTwoEventExecutorChooser implements EventExecut
 在 Nio 模式下，Channel 有两种类型，分别是：NioServerSocketChannel 和 NioSocketChannel，其中 NioServerSocketChannel 用于监听网络连接请求，生成 NioSocketChannel 连接，该 Channle 注册到 BossGroup 的 EventLoop 中，而 NioSocketChannel 负责真正的网络读写，注册到 WorkerGroup 的 EventLoop 中。
 
 **1、NioServerSocketChannel 注册**
-
 ![netty-bind](/images/netty/netty-bind-v2.jpg "netty-bind")
 
 在 Netty 的服务器启动过程中，主要的流程是一个 bind 操作，其流程包括：
+
 - 创建 NioServerSocketChannel 类，完成初始化的工作，其中包括添加 ChannelHandler 类；
 - 将 NioServerSocketChannel 注册到 EventLoop 中，同时向 Selector 对象中注册，不过此时并没有注册 OP_ACCEPT 事件；
 - 执行网络层的 bind 操作；

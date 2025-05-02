@@ -6,6 +6,7 @@ tags:
 - mysql
 - docker
 categories:
+
 - 部署
 ---
 
@@ -52,6 +53,7 @@ mysql:5.7 \
 ```
 
 **Docker 参数说明：**
+
 - -d：后台运行容器，并返回容器 ID;
 - -p：指定端口映射，格式为：主机(宿主)端口 : 容器端口；
 - --name：容器名称，此处为 mysql;
@@ -59,11 +61,13 @@ mysql:5.7 \
 - -e：设置环境变量，此处配置 Mysql 的 root 密码；
 
 **Mysql 目录说明：**
+
 - 配置文件目录：/etc/mysql
 - 日志文件目录：/var/log/mysql
 - 数据文件目录：/var/lib/mysql
 
 **Mysql 参数说明（根据需要配置）：**
+
 - lower_case_table_names=1：设置表名参数名等忽略大小写；
 - max-allowed-packet=1073741824：设置最大插入和更新数据限制为 1G（1024 * 1024 * 1024 = 1073741824），单位：字节；
 - character_set_server=utf8：设置 utf8 字符集；
@@ -79,6 +83,7 @@ $ docker exec -it mysql bash
 $ mysql -uroot -p123456
 
 # 设置 root 用户允许远程访问
+
 > GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' ;
 > FLUSH PRIVILEGES;
 
@@ -96,14 +101,17 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 ```bash
 # 添加用户，以 root 用户登陆到 mysql 
 # 格式：create user new_user identified by password;
+
 > create user dev  identified by '123456';
 
 # 授权
 # grant privilegesCode on dbName.tableName to username@host;
+
 > grant all privileges on *.* to dev@'%';
 > flush privileges;
 
 # 查看用户信息
+
 > select * from mysql.db where User ='dev'
 
 ```
@@ -112,6 +120,7 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 命令格式：grant privilegesCode on dbName.tableName to username@host;
 
 <font color='red'>privilegesCode</font> 表示授予的权限类型，常用的有以下几种类型：
+
 - all privileges：所有权限；
 - select：读取权限；
 - delete：删除权限；
@@ -120,11 +129,13 @@ $ mysql -h 127.0.0.1 -uroot -p123456
 - drop：删除数据库、数据表权限。
 
 <font color='red'>dbName.tableName</font> 表示授予权限的具体库或表，常用的有以下几种选项：
+
 - \*.\*：授予该数据库服务器所有数据库的权限；
 - dbName.*：授予dbName数据库所有表的权限；
 - dbName.dbTable：授予数据库 dbName 中 dbTable 表的权限。
 
 <font color='red'>username@host</font> 表示授予的用户以及允许该用户登录的IP地址。其中Host有以下几种类型：
+
 
 - localhost：只允许该用户在本地登录，不能远程登录。
 - %：允许在除本机之外的任何一台机器远程登录。

@@ -8,6 +8,7 @@ tags:
 - hexo
 - 网站
 categories:
+
 - 博客
 ---
 
@@ -16,6 +17,7 @@ categories:
 <!-- more -->
 
 ## 1. 前置条件
+
 - 购买云主机
 - 购买域名
 - 申请免费证书
@@ -36,6 +38,7 @@ $ docker container run \
 ```
 
 参数说明：
+
 - -d：在后台运行
 - -p：容器的 80 端口映射到宿主机的 80 端口
 - --rm：容器停止运行后，自动删除容器文件
@@ -70,7 +73,7 @@ nginx 的配置文件目录在 /etc/nginx 下，先将其复制到宿主机目�
 $ mkdir /data/nginx
 $ cd /data/nginx
 
-$ docker container cp mynginx:/etc/nginx .x
+$ docker cp mynginx:/etc/nginx ./
 
 $ mv nginx conf
 

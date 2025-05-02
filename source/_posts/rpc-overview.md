@@ -10,6 +10,7 @@ tags:
 - stream-response
 - stream-stream
 categories:
+
 - RPC
 ---
 
@@ -19,9 +20,11 @@ categories:
 
 ## 一句话 RPC
 Wikipedia 对 RPC 的解释：
+
 > In distributed computing, a remote procedure call (RPC) is when a computer program causes a procedure (subroutine) to execute in a different address space (commonly on another computer on a shared network), which is coded as if it were a normal (local) procedure call, without the programmer explicitly coding the details for the remote interaction. 
 
 这里有几个重点：
+
 1. RPC 调用通常是不同进程间的调用，而这些进程一般通过网络进行连接；
 2. 对上层应用而言，本地调用与远程调用在使用方式上没有差异；
 3. RPC 封装了底层通信的细节，不需要开发人员显示地编码。
@@ -156,6 +159,7 @@ RPC 一般有如下五种通信模式。
 
 ## 总结
 一个完整的 RPC 流程包括三个步骤：
+
 1. 定义接口：可以使用中间语言，也可以使用特定的语言定义，如 JAVA；
 2. 生成客户端代理：根据接口定义，通过代码生成客户端代理，它封装了向服务端请求的代码；
 3. 编写服务器接口实现：生成服务器通信代码及编写接口的实现。

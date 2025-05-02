@@ -10,6 +10,7 @@ tags:
 - const_cast
 - reinterpret_cast
 categories: 
+
 - 笔记
 ---
 
@@ -43,6 +44,7 @@ double *dp = static_cast<double*>(p);
 
 ## dynamic_cast
 **运行时类型识别（run-time type identification, RTTI）** 的功能由两个运算符实现：
+
 - typedid 运算符，用于返回表达的类型；
 - dynamic_cast 运算符，用于将基类的指针或引用安全地转换成派生类的指针或引用。
 
@@ -76,6 +78,7 @@ if (Derived *dp = dynamic_cast<Derived*>(bp))
 ```
 
 如果 bp 指向 Derived 对象，则上述的类型转换初始化 dp 并令其指向 bp 所指的 Derived 对象。此时，if 语句内部使用 Derived 操作的代码是安全的，否则，类型转换的结果为 0, dp 为 0 意味着 if 语句的条件失败，此时 else 子句执行相应的 Base 操作。
+
 
 > 可以对一个空指针执行 dynamic_cast，结果是所需类型的空指针。
 

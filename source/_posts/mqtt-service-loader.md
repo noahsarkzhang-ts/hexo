@@ -6,6 +6,7 @@ tags:
 - 服务加载
 - SPI
 categories:
+
 - MQTT
 ---
 这篇文章讲述在 `MQTT Broker` 项目中组件(或类)的加载方式。
@@ -15,7 +16,6 @@ categories:
 ## 概述
 
 在项目中，集群有两种模式：1）单机模式；2）集群模式，单机模式方便测试。缓存/数据库也有多种类型可供选择，缓存有 Memory(内存版本)、Redis、Memcached 等，数据库有 Memory（内存版本）、Mysql等，其整体的关系如下所示：
-
 ![mqtt-service-loader](/images/mqtt/mqtt-service-loader.jpg "mqtt-service-loader")
 
 集群模式需要借助 `MqttEventBus`及 `MqttEventBusManager` 两个接口实现，每一个接口都有两个实现的版本：`Singleton`, `Cluster`, 分别对应单机模式和集群模式。`CacheBeanFactory` 及 `DbBeanFactory` 对应缓存组件和数据库组件的接口，目前都有两种实现。服务加载模块便是根据配置文件的定义，来加载不同的实现类。
@@ -25,6 +25,7 @@ categories:
 为了实现上述功能，决定使用 `SPI` 的技术。`SPI` 全称为 `Service Provider Interface`，是一种服务发现机制。`SPI` 的本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类。这样可以在运行时，动态为接口替换实现类。
 
 查询相关资料，目前 `SPI` 大概有三种服务加载的模式：
+
 1. JDK SPI：通过在 `META-INF/services` 目录下添加与接口同名的文件，并将实现类写入到文件中，最后通过 `ServiceLoader` 类加载。通过这种方式，可以加载一组服务的实现类；
 2. Dubbo SPI: 扩展了 JDK SPI，在其基础上，可以按照别名实现服务的加载；
 3. Spring SPI: 与 JDK SPI 功能类似，配置文件为 `META-INF/spring.factories`.
@@ -170,6 +171,7 @@ public interface Initializer  {
 ```
 
 **说明：**
+
 1. load: 加载配置文件；
 2. alias: 设置别名,`alias` 方法返回的字段与配置文件中的类型保持一致，则可以在 `loadService` 方法中按照别名进行过滤加载；
 3. init: 初始化操作，如缓存或数据库的连接创建。

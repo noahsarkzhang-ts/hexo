@@ -6,6 +6,7 @@ tags:
 - es
 - Elasticsearch
 categories:
+
 - Elasticsearch
 ---
 

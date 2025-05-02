@@ -8,6 +8,7 @@ tags:
 - pthread_cond
 - futex
 categories:
+
 - Java基础
 ---
 
@@ -19,6 +20,7 @@ categories:
 
 ## 1. 整体结构
 ![reentrantlock](/images/reentrantlock.jpg "reentrantlock")
+
 1. 在Java层，维护了锁的state状态及等待队列（包括条件队列），对JVM的依赖只是线程的阻塞和唤醒。给state赋予不同的含义及控制获取锁的方式，Java在语言层面实现丰富的锁结构。
 2. 在JVM层，线程的阻塞和唤醒是通过互斥（pthread_mutex_t）和条件变量(pthread_cond_t)来实现的。_counter用来表示一个许可，通过_counter的值来判断是否在该条件变量上进行等待和唤醒，_counter默认值是0，表示许可未被使用，调用park之后，线程将被阻塞；执行unpark之后，_counter赋值为1，将会唤醒被等待的线程，唤醒的操作是将等待的线程从条件变量（cond）的等待队列移到互斥（mutex）的等待队列上，互斥（mutex）释放之后才将该线程进行调度。
 3. futex由一个用户空间int类型的地址uaddr及相关联的等待队列组成，uaddr由mutex或cond中定义。在内核中维护一个哈希表的数据结构，以uaddr为key,通过hash操作，添加到对应的列表中，从而可以快速搜索到uaddr对应的等待线程。
@@ -28,12 +30,14 @@ categories:
 
 ### 2.1 state状态
 ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSync和FairSync），它们都是继承自AQS，差别主要在于tryAcquire的实现，后面会进到，不过对于state的定义是一致的。在ReentrantLock中，state有如下的含义:
+
 - 0：表示锁未被占用，可以获取锁，获取锁之后变为1；
 - 大于0：表示锁被占用，其它线程获取锁会被阻塞，拥有锁的线程可以重复获取锁（可重入的概念），重复获取锁要对state加1。
 
 ### 2.2 等待队列
 除了状态的管理，ReetrantLock还会维护一个同步队列，线程获取ReentrantLock锁失败后，会将该线程加入到队列的尾部，同时调用LockSupport.park方法让线程阻塞，等待队列是一个双向队列，其结点如下图所示：
 ![aqs-node](/images/aqs-node.jpg "aqs-node")
+
 - prev:指向前一个结点；
 - next:指向后一个结点；
 - nextWaiter:1）用在条件队列（在条件变量上挂起的线程列表）中，指向条件队列的下一个结点；2）用来表示锁的模式，是排他还是共享模式；
@@ -42,6 +46,7 @@ ReentrantLock中有两个实现，分别是公平锁和不公平锁（NonfairSyn
 
 一个包含两个结点的等待队列如下所示：
 ![sync-queue](/images/sync-queue.jpg "sync-queue")
+
 - 在队列中有一个空的head结点，这样可以简化插入到队首的操作；
 - SINGAL状态表示其后续结点需要unpark操作。
 
@@ -97,6 +102,7 @@ public final void acquire(int arg) {
 }
 ```
 流程如下：
+
 - 尝试获取锁，失败之后将线程加入到队列；
 - 加入队列失败，则执行中断。
 
@@ -275,6 +281,7 @@ class PlatformParker : public CHeapObj<mtInternal> {
 ```
 
 在Parker对象中有三个比较重要的变量:
+
 - _counter:用来表示获取凭证；
 - _mutex,_cond:互斥、条件变量，实现阻塞及唤醒的关键就在这里。
 
@@ -356,6 +363,7 @@ void Parker::park(bool isAbsolute, jlong time) {
 
 ```
 主要流程：
+
 1. 首先对_counter进行CAS原子操作，将_counter设置为0，并判断旧值是否大于0，若大于0表示凭证有效，直接返回；
 2. _counter等于0，则尝试获取锁（pthread_mutex_trylock），有中断或获取锁失败直接返回；
 3. 获取锁成功之后，尝试对_counter进行一次判断，如果在这期间，_counter被修改了（大于0），则将_counter设置为0，释放锁，并返回；
@@ -401,6 +409,7 @@ void Parker::unpark() {
 }
 ```
 **主要流程：**
+
 1. 获取锁；
 2. 将_counter值修改为1；
 3. 对_counter的旧值进行判断，如果小于1，则表示有线程阻塞在条件变量，执行pthread_cond_signal唤醒操作。
@@ -451,6 +460,7 @@ typedef union
 } pthread_mutex_t;
 ```
 **主要变量：**
+
 - __lock:锁状态；
 - __owner:锁的拥有者。
 
@@ -512,6 +522,7 @@ __pthread_mutex_lock (pthread_mutex_t *mutex)
 ```
 
 **主要流程：**
+
 - 判断锁的类型，普通锁会走LLL_MUTEX_LOCK (mutex)分支；
 - 获取锁之后会将当前线程线程设置成为锁的拥有者，同时自增mutex变量__nusers的值，表示锁使用人数加1。
 
@@ -543,6 +554,7 @@ __pthread_mutex_lock (pthread_mutex_t *mutex)
    }))
 ```
 **主要流程：**
+
 - 对\_\_futex进行CAS操作，如果旧值为0，则将\_\_futex修改为1，atomic_compare_and_exchange_bool_acq就是完成这个功能。
 - 如果修改成功获取锁返回，且\_\_futex值为1；
 - 如果修改失败，说明\_\_futex不为0，说明其它线程获取到锁，则执行下面的分支。
@@ -585,6 +597,7 @@ __lll_lock_wait (int *futex, int private)
 #endif
 ```
 阻塞的关键操作就在这里：
+
 - 如果futex为2，则调用lll_futex_wait进行阻塞；
 - 如果futex不为2，则将futex修改为2，一般是从1修改为2，再调用lll_futex_wait阻塞线程。
 - 这里有两种情况：1）当前锁被占用，futex为1，但没有线程被阻塞，这是需要将futex修改为2；2）如果已经有线程被阻塞，说明futex为2，则直接阻塞当前线程。
@@ -672,16 +685,19 @@ __pthread_mutex_unlock_usercnt (pthread_mutex_t *mutex, int decr)
 		     __lll_private_flag (FUTEX_WAKE, private), nr, 0)
 ```
 **主要流程：**
+
 - 将futex（mutex.\_\_data.\_\_lock）设置为0并拿到设置之前的值（用户态操作）；
 - 如果futex之前的值大于1，说明有线程阻塞在mutex上，则调用lll_futex_wake唤醒一个线程；
 
 lll_futex_wake调用内核FUTEX_WAKE来唤醒线程。
 
 **总结：**
+
 - mutex锁有三种状态（mutex.\_\_data.\_\_lock的值），0：锁未被占用；1：锁被占用；2：有一个或多个线程阻塞；
 - 在内核中通过mutex.\_\_data.\_\_lock地址来确定一个mutex；
 
 #### 3.4.2 pthread_cond_t
+
 1. pthread_cond_t定义
 ```cpp
 /* Data structure for conditional variable handling.  Thestructure of
@@ -705,6 +721,7 @@ typedef union
 } pthread_cond_t;
 ```
 **主要成员：**
+
 - \_\_lock: 锁变量，用于条件变量内部状态的互斥访问；
 - \_\_futex: 用来执行futex_wait的变量；
 - \_\_total_seq：表示执行了多少次wait操作；
@@ -713,6 +730,7 @@ typedef union
 - \_\_mutex：保存pthread_cond_wait传入的互斥锁；
 - \_\_nwaiters：表示条件变量现在还有多少个线程在使用；
 - \_\_broadcast_seq：表示执行了多少次broadcast。
+
 
 2. pthread_cond_wait
 
@@ -831,6 +849,7 @@ __pthread_cond_wait (cond, mutex)
 ```
 
 **主要流程：**
+
 - 获取cond锁，对cond内状态进行互斥访问;
 - 释放mutex锁，即函数传入的互斥锁;
 - 修改cond状态;
@@ -852,6 +871,7 @@ __pthread_cond_wait (cond, mutex)
 **系统调用：** 阻塞的操作是调用lll_futex_wait方法，而该方法最终是调用FUTEX_WAIT；
 
 **等待队列：** 线程有可能阻塞在两个锁变量上，一个是mutex.\_\_data.\_\_lock上，另外一个是cond.\_\_data.\_\_futex上。
+
 
 2. pthread_cond_signal
 ```cpp
@@ -893,10 +913,12 @@ __pthread_cond_signal (cond)
 }
 ```
 **主要流程：**
+
 - 获取cond锁；
 - 修改cond状态；
 - 如果wait次数大于wakeup次数，则唤醒一个线程；
 - 释放cond锁。
+
 
 3. pthread_cond_broadcast
 与pthread_cond_signal类似，区别在于一次性唤醒所有线程。
@@ -905,6 +927,7 @@ lll_futex_wake (&cond->__data.__futex, INT_MAX, pshared);
 ```
 
 #### 3.4.3 总结
+
 1. 条件变量(cond)与互斥(mutex)配合一起使用，以保证条件判断和阻塞操作是一个原子操作；
 2. 条件变量(cond)内部有一个cond锁，实现对cond内部状态进行互斥访问；
 3. 条件变量(cond)和互斥(mutex)阻塞/唤醒线程都是通过FUTEX_WAIT和FUTEX_WAKE系统调用来实现。
@@ -1015,6 +1038,7 @@ public final native void wait(long timeout) throws InterruptedException;
 ```
 
 调用中断，从Object.wait(), Thread.join()及Thread.sleep()返回时，一般都会抛出InterruptedException，通常以下三种处理办法：
+
 1. 如果自己很清楚当前线程被中断后的处理方式，则按自己的方式处理，通常是做好善后工作，主动退出线程；
 2. 直接在方法声明中throws InterruptedException，丢给上层处理；
 3. 重新设置中断标记位，Thread.currentThread().interrupt()，交给后续方法处理，原因是底层抛出InterruptedException时会清除中断标记位，捕获到异常后如果不想处理，可以重新设置中断标记位。

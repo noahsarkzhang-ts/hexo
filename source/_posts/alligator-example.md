@@ -5,6 +5,7 @@ updated: 2022-01-02 16:37:41
 tags:
 - 实例
 categories:
+
 - Alligator网关
 ---
 
@@ -15,6 +16,7 @@ categories:
 
 ## 配置
 启动 Alligator 系统，需要启动 4 个服务，分别是：
+
 - 注册中心：实现服务的注册与发现，单机部署；
 - 在线服务：实现用户的在线管理；
 - 网关： 接收客户端的连接并将消息转发到注册中心，单机部署；
@@ -22,6 +24,7 @@ categories:
 
 ### MQ topic 配置
 在 Alligator 系统中，网关与后端服务使用 MQ 进行通信，需要为每一个服务（每一台机器）配置一个 Topic, 其说明如下：
+
 - TopicTest：在线服务；
 - TopicTest-1：网关服务；
 - UserEvent：用于广播用户登陆/下线事件；
@@ -78,6 +81,7 @@ common:
     port: 端口
 ```
 各服务地址端口如下配置：
+
 - 9090: 注册中心端口；
 - 9091: 网关端口；
 - 9098: 客户端服务端口；
@@ -91,15 +95,17 @@ common:
 ```
 
 ### 请求链路
-![alligator-process](/images/alligator/alligator-process.jpg "alligator-process")
+![请求链路](/images/alligator/alligator-process.jpg "请求链路")
 
 在这里有几个关键的点：
+
 - 服务发现是通过注册中心来实现的；
 - 网关与后端服务是通过 MQ 来通信的；
 - 所有的客户端连接到网关上，网关下线，注册到该网关的用户都会下线；
 - 用户登陆成功之后，会调用获取全量用户信息，用户在线数据可能比较大，在这里使用 request-stream 方式进行通信；
 
 ## 启动流程
+
 1. 启动 RocketMQ, 并创建相关的 topic;
 2. 启动注册中心，工程为：alligator-registration-server;
 3. 启动在线服务，工程为：alligator-biz-online;

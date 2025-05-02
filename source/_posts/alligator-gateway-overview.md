@@ -9,7 +9,6 @@ tags:
 - Websocket
 categories:
 - Alligator网关
-
 ---
 
 ## 1. 概述
@@ -20,9 +19,10 @@ Alligator 项目就是为了解决上述的场景而开发的，它提供了一�
 <!-- more -->
 
 ## 2. 架构
-![alligator-architecture](/images/alligator/alligator-architecture.jpg "alligator-architecture")
+![系统架构](/images/alligator/alligator-architecture.jpg "系统架构")
 
 模块说明：
+
 - 注册中心：实现服务的注册、发现及负载功能；
 - TCP 网关：接入 TCP 协议客户端，实现用户的登陆、退出及消息的转发功能，同时它维护了客户端及网关之间的 Session 信息；
 - WEBSOCKET 网关：功能同 TCP 网关，接入 WEBSOCKET 协议的客户端；
@@ -32,6 +32,7 @@ Alligator 项目就是为了解决上述的场景而开发的，它提供了一�
 - MQ 服务：实现消息的存储及转发功能；
 
 系统特点：
+
 - 全异步编程：所有模块使用全异步通信，能有效提高模块的吞吐量；
 - RPC 通信：实现 request - response ，oneway ，request - streaming（待开发） 三种双向通信模式；
 - 消息存储及路由：使用 MQ 进行消息的存储及路由，减少模块之间的耦合；

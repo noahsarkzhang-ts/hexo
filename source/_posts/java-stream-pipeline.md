@@ -5,9 +5,11 @@ updated: 2019-12-08 20:13:30
 tags:
 - stream pipeline
 categories:
+
 - Java基础
 ---
 ## 1. 概述
+
 > Java 8中的Stream是对集合（Collection）对象功能的增强，它专注于对集合对象进行各种非常便利、高效的聚合操作（Aggregate operation），或者大批量数据操作(Bulk data operation)。Stream API借助于同样新出现的Lambda表达式，极大的提高编程效率和程序可读性。同时它提供串行和并行两种模式进行汇聚操作，并发模式能够充分利用多核处理器的优势，使用fork/join并行方式来拆分任务和加速处理过程<sup>1</sup>。
 
 <!-- more -->
@@ -18,7 +20,6 @@ List<Integer> list = Arrays.asList(1, 5, 2, 4, 8, 6, 7, 8, 9, 10);
 int sum = list.stream().filter(x -> x % 2 == 0).sorted(Comparator.reverseOrder()).map(x -> x * x).reduce((x, y) -> x + y).get();
 ```
 在这段执行代码之后，将会生成以下的数据结构：
-
 ![java-stream-pipeline](/images/java-stream-pipeline.jpg "java-stream-pipeline")
  
  - 操作的定义：对数据的一次处理，如过滤(filter)，排序(sorted)，映射(map)及规约（reduce）等等。操作有三种类型：1)Head，头结点，没有实际操作，包含了数据源；2)ReferencePipeline，中间操作，代表了一次数据处理；3)TerminalOp，结束操作，代表处理的结束。
@@ -30,6 +31,7 @@ int sum = list.stream().filter(x -> x % 2 == 0).sorted(Comparator.reverseOrder()
 
 在文章开始前，先讲述下几个重要概念：
 1、Stream
+
 > A sequence of elements supporting sequential and parallel aggregate operations.  The following example illustrates an aggregate operation using 
 >```java
 int sum = widgets.stream()
@@ -105,6 +107,7 @@ TerminalOp有四种类型，分别是：1）ForEachOp；2）FindOp；3）MatchOp
 最后的终止操作是通过调用诸如forEach(), reduce(), collect(), anyMatch()等这些方法来触发的，这些方法最终会调用ReferencePipeline类中的evaluate()方法来完成操作，在evaluate()方法，生成一个TerminalOp对象，且封装了一个统一的处理流程，现在来看下这个evaluate()方法，其流程如下：
 ![stream-evaluate](/images/stream-evaluate.jpg "stream-evaluate")
 
+
 - 根据不同的终止操作生成不同的TerminalOp对象，可以是上面四种类型中的任意一种；
 - 构建数据源Spliterator；
 - 执行evaluate()方法的中间操作ReferencePipeline对象合并TerminalOp对象的操作标志位，如是否短路操作等等；
@@ -159,6 +162,7 @@ if (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) {
 在两个地方需要判断“短路”标志，一个是根据“短路”标志，是否执行“短路”操作，另外一个是在遍历数据源的过程中，判断数据处理是否已经被取消，需要中止操作，以anyMatch()方法为例。
 ![short_circuit-1](/images/short_circuit-1.jpg "short_circuit-1")
 如上图所示，判断“短路”的逻辑如下：
+
 - 在短路操作的TerminalOp对象中设置短路的标志位；
 ```java
 // MatchOp.getOpFlags()
@@ -166,6 +170,7 @@ public int getOpFlags() {
     return StreamOpFlag.IS_SHORT_CIRCUIT | StreamOpFlag.NOT_ORDERED;
 }
 ```
+
 - 将TerminalOp对象中短路标志位合并到最后一个ReferencePipeline对象的combinedFlags中；
 ```java
 // AbstractPipeline.sourceSpliterator()
@@ -174,6 +179,7 @@ if (terminalFlags != 0)  {
     combinedFlags = StreamOpFlag.combineOpFlags(terminalFlags, combinedFlags);
 }
 ```
+
 - 根据combinedFlags判断是否执行短路操作；
 ```java
 // AbstractPipeline.copyInto()
@@ -190,6 +196,7 @@ else {
 中止操作的逻辑如下：
 ![short_circuit-2](/images/short_circuit-2.jpg "short_circuit-2")
 在MatchSink中一个stop的字段，如果找到匹配的数据，则设置stop=true，在进行下一个数据匹配之前递归调用cancellationRequested()，取得stop的值，从而中止操作。
+
 - 找到匹配的数据并设置stop；
 ```java
 // MatchSink.accept()
@@ -201,6 +208,7 @@ public void accept(T t) {
     }
 }
 ```
+
 
 - 对下一个数据元素进行数据处理前递归调用cancellationRequested()方法，调用到TerminalSink，结束调用。
 ```java

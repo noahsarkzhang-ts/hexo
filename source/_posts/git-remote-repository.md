@@ -78,6 +78,7 @@ $git remote show <remote>
 如果想要查看某一个远程仓库的更多信息,可以使用这个命令
 ```bash
 $ git remote show origin
+
 * remote origin
   Fetch URL: https://github.com/schacon/ticgit
   Push  URL: https://github.com/schacon/ticgit

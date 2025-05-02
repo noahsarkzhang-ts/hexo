@@ -7,6 +7,7 @@ tags:
 - keyed state
 - timer
 categories:
+
 - Flink
 ---
 
@@ -17,6 +18,7 @@ categories:
 ## 概述
 
 `ProcessFunction` 是 Flink low-level 流处理操作方法，通过它可以做如下操作：
+
 - 访问事件；
 - 获取 Keyed Stream 流状态；
 - 操作基于事件时间或处理时间的定时器 (only on keyed stream).
@@ -30,6 +32,7 @@ categories:
 ## 代码实例
 
 在下面的实例中，使用 `KeyedProcessFunction` 模拟了一个简单的 `Session Window` 的功能，它统计用户一次会话的请求数，一个用户持续 60 S 没有收到请求，则表明会话结束，结束会话并输出统计结果。它包含如下的功能：
+
 - `UserRequest` 对象代表了用户的请求数据，包括用户 id, 操作类型及时间戳三个字段；
 - `CountWithTimestamp` 对象状态变量，包括用户 id, 统计次数及上次访问的时间戳三个字段；
 - 根据用户 id 进行分组(key by)，每一个 key 都持有一个 `CountWithTimestamp` 状态变量；

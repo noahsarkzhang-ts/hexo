@@ -98,6 +98,7 @@ import _ "image/png"   // 注册PNG解码器
 
 ## 包及其命名
 包及成员命名的相关建议：
+
 1. 使用简短的名字来命名包名，如标准库中常见的包：bufio,bytes,flag,fmt,http,io,json,os,sort,sync和time等；
 2. 尽可能保持可读性和无歧义，如使用 imageutil 或 ioutil 等名称清晰和具体的包名，避免使用util宽泛的包名；
 3. 包名使用统一的形式，如使用 bytes, errors,和 strings 复数形式来避免与基本类型相冲突;
@@ -136,6 +137,7 @@ Use "go help <command>" for more information about a command.
 
 ### 环境变量
 常用的环境变量如下：
+
 1. GOPATH: 指定工作空间的根目录；
 2. GOROOT: 指定Go 发行版的根目录，其中提供所有标准库的包；
 3. GOOS：指定操作系统，如android, linux, darwin 或者 windows;

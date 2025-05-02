@@ -5,7 +5,7 @@ updated: 2024-04-12 21:29:21
 tags:
 - git 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录用到的 git 命令。
@@ -229,6 +229,7 @@ git branch -M main
 
 **5. 本地仓库和远程 github 关联**
 ```bash
+
 5.git remote add origin http://xxxxxxxxx.git
 ```
 
@@ -242,6 +243,7 @@ git pull --rebase origin main
 ![basic-usage](/images/git/basic-usage.svg.png "basic-usage")
 
 上面的四条命令在工作目录、暂存目录(也叫做索引)和仓库之间复制文件。
+
 - git add files 把当前文件放入暂存区域。
 - git commit 给暂存区域生成快照并提交。
 - git reset -- files 用来撤销最后一次git add files，你也可以用git reset 撤销所有暂存区域文件。
@@ -256,12 +258,10 @@ merge 命令把不同分支合并起来。合并前，索引必须和当前提�
 ![merge-ff](/images/git/merge-ff.svg "merge-ff")
 
 否则就是一次真正的合并。默认把当前提交(ed489 如下所示)和另一个提交(33104)以及他们的共同祖父节点(b325c)进行一次三方合并。结果是先保存当前目录和索引，然后和父节点33104一起做一次新提交。
-
 ![merge](/images/git/merge.svg "merge")
 
 ### Cherry Pick
 cherry-pick 命令"复制"一个提交节点并在当前分支做一次完全一样的新提交。
-
 ![cherry-pick](/images/git/cherry-pick.svg "cherry-pick")
 
 ### Rebase

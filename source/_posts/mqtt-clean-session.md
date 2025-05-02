@@ -5,6 +5,7 @@ updated: 2023-01-01 18:53:18
 tags:
 - clean session
 categories:
+
 - MQTT
 ---
 
@@ -15,7 +16,6 @@ MQTT 可以设置是否持久化 Session 数据，这样可以保证终端断线
 ## 概述
 
 `Clean Session` 位于 CONNECT 控制报文中，如下所示：
-
 ![mqtt-connect-flag](/images/mqtt/mqtt-connect-flag.jpg "mqtt-connect-flag")
 
 `Clean Session` 标志位用来设置客户端和服务端之间的 Session 状态，以支持跨网络连接的可靠消息传输，这个标志位用于控制 Session 状态的生存时间。
@@ -27,10 +27,12 @@ MQTT 可以设置是否持久化 Session 数据，这样可以保证终端断线
 要完成 Session 数据的恢复，需要在客户端和服务端两端保存数据，其内容有：
 
 客户端中存储的 Session 数据：
+
 - 已发送给服务端，但是还没有完成确认的 QoS 1 与 QoS 2 消息。
 - 从服务端收到的，但是还没有完成确认的 QoS 2 消息。
 
 服务端中存储的 Session 数据：
+
 - 会话是否存在，即使会话状态其余部分为空；
 - 已发送给客户端，但是还没有完成确认的 QoS 1 与 QoS 2 消息；
 - 等待传输给客户端的 QoS 0 消息（可选），QoS 1 与 QoS 2 消息；

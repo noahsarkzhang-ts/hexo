@@ -8,18 +8,20 @@ tags:
 - 一致性算法
 - 共识算法
 categories: 
+
 - 数据结构与算法
 ---
 
 ## 1. 概述
 在分布式系统中，一个核心的问题就是解决数据一致性的问题，即共识问题（多副本共识问题）：
+
 > Consensus Problem : Requires agreement among a number of processes (or agents) for a single data value.
 
 共识问题简单来说，就是多个进程（代理）就某个单值达成一致，主要的应用场景数据多副本的复制。而 Paxos 及 Raft 算法的提出便是为了解决共识问题，它们在工程实现上得到了广泛的应用，如 Goggle 的 Chubby、Apache 的 ZooKeeper 及 Raft算法实现 Etcd。这些算法都可以统称为一致性算法。
-
 ![paxos-evolution](/images/consensus-algorithm/paxos-evolution.jpg "paxos-evolution")
 
 一致性算法大概可以分为4个类型：
+
 1. Basic-Paxos : 提供就一个提案达成一致的算法，是最基本的算法，在工程实践中很少使用该算法；
 2. Multi-Paxos : 在 Basic-Paxos 算法的基础上，提供了就一批提案达成一致的算法，在工程中有很多类似的实现；
 3. Raft : 针对 Multi-Paxos 算法难于理解及实现复杂，提供了一种简化的实现；
@@ -35,6 +37,7 @@ Paxos 算法解决的问题是一个分布式系统如何就某个值（提案�
 
 ### 2.1 Basic-Paxos
 在 Paxos 算法中，节点分为三种角色：
+
 1. Proposers：提案（value）发起者，接收客户端请求；
 2. Acceptors：接收提案（value）进行决策，存储 accept 的提案（value）；
 3. Learners：不参与决策，从 Proposers 和 Acceptors 学习最新达成一致的提案（value）。
@@ -43,6 +46,7 @@ Paxos 算法解决的问题是一个分布式系统如何就某个值（提案�
 Paxos 算法分为两个阶段，为什么使用两个阶段，可以参考这篇文章：[一步一步理解Paxos算法](https://mp.weixin.qq.com/s?__biz=MjM5MDg2NjIyMA==&mid=203607654&idx=1&sn=bfe71374fbca7ec5adf31bd3500ab95a&key=8ea74966bf01cfb6684dc066454e04bb5194d780db67f87b55480b52800238c2dfae323218ee8645f0c094e607ea7e6f&ascene=1&uin=MjA1MDk3Njk1&devicetype=webwx&version=70000001&pass_ticket=2ivcW%2FcENyzkz%2FGjIaPDdMzzf%2Bberd36%2FR3FYecikmo%3D)
 
 **Paxos 协议分为两个阶段：**
+
 1. 第一阶段 Prepare：
     - Proposer 生成全局唯一且递增的提案 ID （ProposalId），向 Paxos 集群的所有机器发送 PrepareRequest，这里无需携带提案内容，只携带 ProposalId 即可。Acceptor 收到  PrepareRequest 后，做出“两个承诺，一个应答”。
     - 两个承诺主要是指：
@@ -50,6 +54,7 @@ Paxos 算法分为两个阶段，为什么使用两个阶段，可以参考这�
         - 不再应答 ProposalId 小于（注意：这里是 < ）当前请求的 AcceptRequest。
     - 一个应答主要是指：
     返回自己已经 Accept 过的提案中 ProposalID 最大的那个提案的内容，如果没有则返回空值;
+
 
 
 2. 第二阶段 Accept：
@@ -62,6 +67,7 @@ Paxos 算法分为两个阶段，为什么使用两个阶段，可以参考这�
 在执行上面两个步骤之后，实际上后续还有一个步骤。在实际应用中，如使用 Paxos 算法的 KV 系统，上述两个步骤只是完成了日志在不同系统的提交，对于一个写操作，还需要将写操作提交到背后的存储结构中，这个操作往往是异步操作。
 
 在 Paxos 两个阶段中隐含了两个规则：
+
 1. 喜新厌旧：在第一阶段中，更大的 ProposalId 会抢占比它小的提案，前提是还没有 ProposalId 被 Accept；
 2. 后者认同前者：在第二阶段中，如果提案还没有被 Accept，则提交自己新的 Proposal，如果已经提案已经被 Accept，则使用旧的提案内容进行提交。
 
@@ -99,6 +105,7 @@ Basic-Paxos 存在一个活锁的问题，如下图所示：
 Multi-Paxos 就是对每一个 Paxos Instance 执行一次 Paxos 算法，确保每一台节点上的数据都是一致的。
 
 Multi-Paxos 有如下一些缺点：
+
 1. 比较复杂，难以理解，工程实现难度比较大；
 2. 每一个服务器都可以执行写操作，性能较差。
 
@@ -111,6 +118,7 @@ Multi-Paxos 有如下一些缺点：
 Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一致性。Leader 从客户端接收日志条目，把日志条目复制到其它节点上，并且当保证安全性的时候告诉其它节点应用日志条目到他们的状态机中。拥有一个 Leader 大大简化了对复制日志的管理。例如，Leader 可以决定新的日志条目需要放在日志中的什么位置而不需要和其他节点商议，并且数据只从 Leader 流向其他节点。一个 Leader 可以宕机，可以和其他节点失去连接，这时一个新的 Leader 会被选举出来。
 
 通过 Leader 的方式，Raft 将一致性问题分解成了三个相对独立的子问题：
+
 1. Leader 选举：当现存的 Leader 宕机的时候，一个新的 Leader 需要被选举出来；
 2. 日志复制：Leader 必须从客户端接收日志然后复制到集群中的其他节点，并且强制要求其它节点的日志保持和自己相同；
 3. 安全性：如果有任何的节点节点已经应用了一个确定的日志条目到它的状态机中，那么其它节点节点不能在同一个日志索引位置应用一个不同的指令。
@@ -119,8 +127,8 @@ Raft 通过选举一个 Leader，然后让它负责日志的复制来实现一�
 **Server状态：**
 
 在任何时刻，每一个节点节点都处于这三个状态之一：Leader 、Follower 或者 Candidate。在通常情况下，系统中只有一个 Leader 并且其它的节点全部都是 Follower。Follower 都是被动的：它们不会发送任何请求，只是简单的响应来自 Leader 或者 Candidate 的请求。Leader 处理所有的客户端请求（如果一个客户端和 Leader 联系，那么 Follower 会把请求重定向给 Leader）。第三种状态，Candiate，是用来在选举新 Leader 时使用。下图展示了这些状态和它们之间的转换关系。
-
 ![raft_server_state](/images/consensus-algorithm/raft_server_state.png "raft_server_state")
+
 - Leader : 处理客户端的请求以及日志复制；
 - Follower : 接收来自 Leader 或者 Canditate 的 Message，并响应；
 - Candidate : 用于选主的中间状态。
@@ -135,7 +143,6 @@ Raft 算法中服务器节点之间通信使用远程过程调用（RPCs），�
 ### 4.2 Leader 选择
 Raft 使用心跳机制来触发 Leader 选举。当服务器程序启动时，他们都是 Follower 身份。只要从 Leader 或者 Candidate 处接收到有效的 AppendEntries RPC， 一个服务器节点继续保持着 Folllowr 状态。Leader 周期性的向所有 Follower 发送心跳包（即不包含日志项内容的追加日志项 RPCs）来维持自己的权威。如果一个 Follower 在一段时间里没有接收到任何消息，也就是选举超时，那么他就会认为系统中没有可用的 Leader,并且发起选举以选出新的 Leader。
 要开始一次选举过程，Follower 先要增加自己的当前任期号并且转换到 Candidate 状态。然后它会并行的向集群中的其他服务器节点发送请求投票的 RPCs 来给自己投票。如果一个 Candidate 从整个集群的大多数服务器节点获得了针对同一个任期号的选票，那么它就赢得了这次选举并成为 Leader。每一个服务器最多会对一个任期号投出一张选票，按照先来先服务的原则，并且确保 Candidate 的日志比服务器更新。要求大多数选票的规则确保了最多只会有一个 Candidate 赢得此次选举，要求 Candidate 的日志最新，确保日志只从 Leader 流向 Follower。一旦候选人赢得选举，它就立即成为领导人。然后他它会向其他的服务器发送心跳消息来建立自己的权威并且阻止新的 Leader 的产生。
-
 ![raft-election](/images/consensus-algorithm/raft-election.jpg "raft-election")
 
 一个 Candidate 获得集群中多数服务器的选票，并不代表真正获得了 Leader，因为它只完成了类似 Basic-Paxos的 Prepare阶段，此时它还需要向集群中的服务器发送 AppendEntries RPC，阻止其它服务器发起选主请求，其它服务器收到该 RPC 之后，将自己的状态转化为 Follower。
@@ -185,18 +192,19 @@ Raft 的日志在正常操作中不断的增长，但是在实际的系统中，
 
 **Joint-Consensus**
 Raft 算法采用协同一致性的方式来解决节点的变更，先提交一个包含新老节点结合的 Configuration 命令，当这条消息 Commit 之后再提交一条只包含新节点的 Configuration 命令。新老集合中任何一个节点都可以成为 Leader，这样 Leader 当机之后，如果新的 Leader 没有看到包括新老节点集合的 Configuration 日志，继续以老节点集合组建集群；如果新的 Leader 看到了包括新老节点集合的 Configuration 日志，将未完成的节点变更流程走完。具体流程如下：
+
 1. 加入新对节点，从 Leader 中追加数据；
 2. 全部新节点完成数据同步之后，向新老集合发送 Cold+new 命令；
 3. 如果新节点集合多数和老节点集合多数都应答了 Cold+new，就向新老节点集合发送 Cnew 命令；
 4. 如果新老节点集合多数应答了 Cnew，完成节点切换。
 
 在这里，我们可以把 Cold+new 理解为包含新老结点地址集合，如果当前集群包括 server1, server2 及 server3, 新加的结点为 server4, server5,那么 Cold+new 等同于集合 [server1, server2, server3, server4, server5], Cold 为 [server1, server2, server3], Cnew 为 [server4, server5]。
-
 ![raft-member-transmit](/images/consensus-algorithm/raft-member-transmit.png "raft-member-transmit")
 虚线表示已经被创建但是还没有被提交的配置日志条目，实线表示最后被提交的配置日志条目。领导人首先创建了 Cold+new 的配置条目在自己的日志中，并提交到 Cold+new 中（Cold 的大多数和 Cnew 的大多数）。然后它创建 Cnew 条目并提交到 Cnew 中的大多数。这样就不存在 Cnew 和 Cold 可以同时做出决定的时间点。
 如果 Cold+new 被 Commit 到新老集合多数的话，即使过程终止，新的 Leader 依然能够看到 Cold+new，并继续完成 Cnew 的流程，最终完成节点变更；如果 Cold+new 没有提交到新老集合多数的话，新的Leader可能看到了 Cold+new 也可能没有看到，如果看到了依然可以完成 Cnew 的流程，如果没有看到，说明 Cold+new 在两个集合都没有拿到多数应答，重新按照 Cold 进行集群操作，两阶段过程中选主需要新老两个集合都达到多数同意。
 
 节点配置变更过程中需要满足如下规则：
+
 - 新老集合中的任何节点都可能成为 Leader；
 - 任何决议都需要新老集合的多数通过。
 
@@ -208,11 +216,13 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 还是以三结点 Raft 集群为例，演示下变更为五结点的过程，假定节点 A 为 Leader。
 ![raft-node-evolution-1](/images/consensus-algorithm/raft-node-evolution-1.jpg "raft-node-evolution-1")
 目前的集群配置为[A, B, C]，先向集群中加入节点 D，这意味着新配置为[A, B, C, D]。成员变更，是通过两步实现的：
+
 1. Leader（节点 A）向新节点（节点 D）同步数据；
 2. Leader（节点 A）将新配置 [A, B, C, D] 作为一个日志项，复制到新配置中所有节点（节点 A、B、C、D）上，然后将新配置的日志项应用（Apply）到本地状态机，完成单节点变更。
 ![raft-node-evolution-2](/images/consensus-algorithm/raft-node-evolution-2.jpg "raft-node-evolution-2")
 
 变更完成后，集群的配置变为 [A, B, C, D],接着向集群加入结点 E，即新配置为[A, B, C, D, E]，流程类似:
+
 1. Leader（节点 A）向新节点（节点 E）同步数据；
 2. Leader（节点 A）将新配置 [A, B, C, D, E] 作为一个日志项，复制到新配置中所有节点（节点 A、B、C、D、E）上，然后将新配置的日志项应用（Apply）到本地状态机，完成单节点变更。
 ![raft-node-evolution-3](/images/consensus-algorithm/raft-node-evolution-3.jpg "raft-node-evolution-3")
@@ -220,7 +230,6 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 通过连续执行两次单结点变更，完成了集群结点的扩容。
 
 一次性加入一个结点，重点在于新老配置的结点不会形成两个多数派，新老配置要形成多数派总会有重叠的结点，重叠的结点不会给同一任期的两个结点投两次票，这是由 Raft 算法的安全性保证的。
-
 ![raft-node-evolution](/images/consensus-algorithm/raft-node-evolution.jpg "raft-node-evolution")
 
 不管节点数是偶数还是奇数，增加或减少一个结点都不能形成新老配置的两个多数派，两个集合总会有重叠，从而确保了算法的安全性。
@@ -240,23 +249,27 @@ Raft 算法采用协同一致性的方式来解决节点的变更，先提交一
 个人理解：<strong style="color:red">Raft Log read 关键点在于提交一次读操作并应用到状态机后，将之前处于 Commited　状态的 log 都应用到状态机，确保状态机的状态是最新的。</strong>
 
 在 Raft 算法中，执行一次写操作，由客户端向 Leader 发起，首先 Leader 将本次操作写入本地日志，然后向所有的 Follower 同步日志，Follower 收到日志之后写入本地，并回复给 Leader ； Leader 收到半数以上的回复之后将本次操作应用到本地的状态机，并返回客户端写入成功，最后 Leader 在下次同步日志时再将本次日志 Commited 的信息传递给 Follower , Follower再异步更新本地状机。可见，一次写入操作之后，Leader 状态机拥有最新的状态，而 Follower 状态机的状态有可能落后于 Leader。如果直接从 Follower 读到数据，会读到 Stale 数据。如果从 Leader 读取数据的话，则可以保证线性读取最新的数据。现在关键的问题是：<strong style="color:red">如何确认 Leader 在处理这次 Read 的时候一定是 Leader ? </strong>，在这里，有两种方法：
+
 1. ReadIndex Read;
 2. Lease Read.
 
 **ReadIndex Read**
 ReadIndex Read 有两个关键点：
+
 1. Leader 向 Follower 发送心跳确认自己仍然是 Leader，避免 Leader 已经过期而不自知；
 2. 维护一个 ReadIndex , 初始值等于 Leader 的 CommitIndex , 并将 ReadIndex 指向的所有 Log 都应用到状态机中，确保所有的写操作都已经应用。
 
 ReadIndex Read 可以从 Leader 和 Followr 读取，过程如下描述。
 
 从 Leader 读取：
+
 1. Leader 将自己当前 Log 的 commitIndex 记录到一个 Local 变量 ReadIndex 里面；
 2. 接着向 Followers 节点发起一轮 Heartbeat，如果半数以上节点返回对应的 Heartbeat Response，那么 Leader就能够确定现在自己仍然是 Leader；
 3. Leader 等待自己的 StateMachine 状态机执行，至少应用到 ReadIndex 记录的 Log，直到 applyIndex 超过 ReadIndex，这样就能够安全提供 Linearizable Read，也不必管读的时刻是否 Leader 已飘走；
 4. Leader 执行 Read 请求，将结果返回给 Client。
 
 从 Follower 读取：
+
 1. Follower 节点向 Leader 请求最新的 ReadIndex；
 2. Leader 仍然走一遍之前的流程，执行上面前 3 步的过程(确定自己真的是 Leader)，并且返回 ReadIndex 给 Follower；
 3. Follower 等待当前的状态机的 applyIndex 超过 ReadIndex；
@@ -269,12 +282,14 @@ Raft 论文里面提及一种通过 Clock + Heartbeat 的 Lease Read 优化方�
 Lease Read 基本思路是 Leader 取一个比 Election Timeout 小的租期（最好小一个数量级），在租约期内不会发生选举，确保 Leader 不会变化，所以跳过 ReadIndex 的第二步也就降低延时。由此可见 Lease Read 的正确性和时间是挂钩的，依赖本地时钟的准确性，因此虽然采用 Lease Read 做法非常高效，但是仍然面临风险问题，也就是存在预设的前提即各个服务器的 CPU Clock 的时间是准的，即使有误差，也会在一个非常小的 Bound 范围里面，时间的实现至关重要，如果时钟漂移严重，各个服务器之间 Clock 走的频率不一样，这套 Lease 机制可能出问题。
 
 Lease Read 实现方式包括：
+
 1. 定时 Heartbeat 获得多数派响应，确认 Leader 的有效性；
 2. 在租约有效时间内，可以认为当前 Leader 是唯一有效 Leader，可忽略 ReadIndex 中的 Heartbeat 确认步骤；
 3. Leader 等待自己的状态机执行，直到 applyIndex 超过 ReadIndex，这样就能够安全的提供 Linearizable Read
 
 ### 4.7 安全性
 使用 Raft 算法，需要保证如下的安全性：
+
 1. 选举安全特性：对于一个给定的任期号，最多只会有一个领导人被选举出来；
 2. 领导人只附加原则：领导人绝对不会删除或者覆盖自己的日志，只会增加；
 3. 日志匹配原则：如果两个日志在相同的索引位置的日志条目的任期号相同，那么我们就认为这个日志从头到这个索引位置之间全部完全相同；
@@ -283,7 +298,6 @@ Lease Read 实现方式包括：
 
 ## 5. Multi-Raft
 因为 Raft 集群内只有 Leader 提供读写服务，所以读写也会形成单点的瓶颈。因此为了支持水平扩展，可以按某种 Key 进行分片部署，比如用户 ID，让 Group 1 对 [0, 10000) 的 ID 提供服务，让 Group 2 对 [10000, 20000) 的 ID 提供服务，以此类推。如下是 SOFAJRaft 的实现：
-
 ![multi-raft](/images/consensus-algorithm/multi-raft.png "multi-raft")
 
 ## 6. 总结

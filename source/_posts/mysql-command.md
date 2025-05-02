@@ -6,7 +6,7 @@ tags:
 - mysql 命令
 - mysqldump 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录用到 Mysql 命令。

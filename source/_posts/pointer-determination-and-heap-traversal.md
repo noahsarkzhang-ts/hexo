@@ -6,6 +6,7 @@ tags:
 - 指定判定
 - 堆的遍历
 categories: 
+
 - Java基础
 ---
 
@@ -23,6 +24,7 @@ categories:
 ![pointer](/images/gc/pointer.jpg "pointer")
 
 识别出堆上或根上的数据是否是指针，是垃圾回收的前提，根据识别的程度，可以将垃圾回收分为三类：
+
 1. 准确式 GC (precise GC) ：能够识别根上指针和堆内指针，明确数据是否是指针类型；
 2. 半保守式 GC ：也叫根上保守，它能识别堆内指针，但不能识别根上指针；
 3. 保守式GC（conservative GC）: 不能完全识别指针类型，它根据一些规则来排除不是指针，这些规则包含上下边界检查（GC堆的上下界是已知的）、对齐检查（通常分配空间的时候会有对齐要求，假如说是4字节对齐，那么不能被4整除的数字就肯定不是指针）。
@@ -32,11 +34,13 @@ categories:
 
 ### 1.2 根上指针的判定
 根上的数据，如寄存器和线程栈，是运行时产生的数据，与堆内指针的判定方法不一样，以 JVM 为例，一般有以下几个方法：
+
 1. 让数据自身带上标记（tag）；
 2. 让编译器为每个方法生成特别的扫描代码；
 3. 从外部记录下类型信息，存成映射表。现在三种主流的高性能 JVM 实现，HotSpot、JRockit 和 J9 都是这样做的。其中，HotSpot把这样的数据结构叫做OopMap，JRockit 里叫做livemap，J9 里叫做GC map。Apache Harmony的 DRLVM 也把它叫 GCMap。
 
 JVM 中指令的执行会影响寄存器和线程栈中的数据，要实现映射表，需要 JVM 的解释器和 JIT 编译器都有相应的支持，由它们来生成足够的元数据（类型）提供给垃圾回收器。在HotSpot中，如果 JVM 以解释的方式运行代码，映射表（OopMap）可以由解释器来收集；如果使用 JIT 编译器编译后的代码，则需要在一些关键点插入代码来记录映射表（OopMap）。这些关键点也叫做“安全点”（safepoint），之所以要选择一些特定的位置来记录OopMap，是因为如果对每条指令（的位置）都记录 OopMap 的话，这些记录就会比较大，那么空间开销会显得不值得。选用一些比较关键的点来记录就能有效的缩小记录的数据量，这些关键点包括：
+
 
 1. 循环的末尾；
 2. 方法临返回前 / 调用方法的call指令后；
@@ -45,6 +49,7 @@ JVM 中指令的执行会影响寄存器和线程栈中的数据，要实现映�
 所以说，垃圾回收不是在任意位置都可以进入，只能在 safepoint 处进入。
 
 平时这些 OopMap 都是压缩存在内存里，在垃圾回收的时候才按需解压出来使用，一般有两种使用方式：
+
 1. 每次都遍历原始的OopMap，循环的一个个偏移量扫描过去；这种用法也叫“解释式”；
 2. 为每个 OopMap生成一块定制的扫描代码，以后每次要用 OopMap 就直接执行生成的扫描代码；这种用法也叫“编译式”。
 
@@ -53,6 +58,7 @@ HotSpot 是用“解释式”的方式来使用 OopMap 的，每次都循环变�
 ### 1.3 OopMap
 
 在 HotSpot 中，对象的类型信息里有记录自己的 OopMap，记录了在该类型的对象内什么偏移量上是什么类型的数据。所以从对象开始向外的扫描可以是准确的，这些数据是在类加载过程中计算得到的。另外，在“安全点”中记录了根上数据类型及偏移量，保证了根上的数据类型也是准确的，通过这两种方法，HotSpot 实现了准确式 GC 。现在我们来看下，在 JVM 中 OopMap 相关的信息。
+
 
 > Oop maps are bit maps specifying which stack and register locations hold oops for a given pc. During GC, these locations need to be visited since they represent roots for GC. Also, if GC moves objects, pointers must be updated.
 
@@ -144,12 +150,14 @@ off=260 就是这个 OopMap 记录关联的指令在方法的指令流中的偏�
 ![klass](/images/gc/klass.png "klass")
 
 HotSpot中采用了 OOP-Klass 模型来描述 Java 对象与类的关系：
+
 1. OOP 或 OOPS （Ordinary Object Pointer）指的是普通对象指针，主要职能是表示对象的实例数据，存储在堆里面；
 2. Klass 用来描述对象实例的具体类型，实现语言层面的 Java 的 Class 对象，在 JVM 中用 Klass 表示，存储在元空间（方法区）。
 
 在 Java 中，每创建一个 Java 对象，在 JVM 内部也会相应创建一个 OOP 对象来表示 Java 对象。OOP类的共同基类型是oopDesc，它有多个子类，instanceOopDesc 表示对象，arrayOopDesc 表示数组。
 
 其中，instanceOopDesc 和 arrayOopDesc 又称为对象头，instanceOopDesc 对象头包括以下两部分信息：Mark Word 和 元数据指针(Klass*)：
+
 1. Mark Word，主要存储对象运行时记录信息，如hashcode、GC分代年龄、锁状态标志、线程持有的锁、偏向线程ID、偏向时间戳等;
 2. 元数据指针，用来存储 klass 指针，对应的klass 指针指向一个存储类的元数据的 Klass 对象。
 
@@ -204,10 +212,12 @@ InstanceKlass layout:
 ### 2.1 内存分配
 在垃圾回收算法中，需要对堆进行清除及整理操作，这时候就需要对堆从头到尾进行遍历，遍历的方式跟内存的分配方式极为相关，我们先介绍内存的分配方式。内存的分配方式有两种基本的分配策略：1）顺序分配；2）空闲链表分配。
 
+
 1. 顺序分配
 顺序分配使用一个较大的空闲内存块，从一端根据大小顺序分配，它的数据结构比较简单，只需要一个空闲指针（free pointer）和一个界限指针（limit pointer）。根据分配的内存块大小，只要简单移动空闲指针即可。如果存在字节对齐要求，则可能需要额外增加填充字节，分配的逻辑如下图所示：
 ![sequence-allocation](/images/gc/sequence-allocation.jpg "sequence-allocation")
 顺序分配的特点是简单、高效，适用于大块内存及内存比较规整的情况下，可以在复制回收及标记整理算法中使用。使用顺序分配的堆中，要实现堆的遍历，每一个分配的内存块需要包含一个头部，描述内存块的信息，如块的大小等等。
+
 
 2. 空闲链表分配
 空闲链表使用某种数据结构来记录空闲内存单元（free cell）的位置和大小，该数据结构将所有的空闲内存块串联起来进行统一分配。严格来讲，空闲内存单元的组织方式不一定是链表，也可以采用其它形式。下面是使用双向空闲链表的结构：

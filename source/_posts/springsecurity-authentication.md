@@ -11,6 +11,7 @@ tags:
 - UserDetails
 - Authentication
 categories:
+
 - Springboot
 ---
 
@@ -21,10 +22,10 @@ categories:
 ## 整体流程
 
 我们以之前文章的代码来分析认证的整体流程，关键步骤如下所示：
-
 ![Authentication-flow](/images/spring-cloud/Authentication-flow.jpg "Authentication-flow")
 
 **登陆主要流程：**
+
 1. 用户首先打开登陆页面，页面的 endpoint 为 `login.html, Method: GET`, 该页面直接放行，返回给浏览器渲染展现；
 2. 用户输入用户名/密码，执行登陆操作，endpoint 为 `login, Method: POST`, 而 `login` 是我们指定的登陆处理 endpoint; 
 3. `login, Method: POST` 请求被 UsernamePasswordAuthenticationFilter 拦截，读取参数构造请求对象 UsernamePasswordAuthenticationToken;
@@ -36,13 +37,14 @@ categories:
 9. ProviderManager 对象中获取到 Authentication 对象之后，进行复制操作之后，返回给 UsernamePasswordAuthenticationFilter 对象。这个 Authentication 对象持有用户的账号及权限信息，在后期的授权操作中会被用到。
 
 **登出主要流程：**
+
 1. 登出的 endpoint 为 `logout, Method: GET`, 该 endpoint 被 LogoutFilter 拦截；
 2. 在 LogoutFilter 中，登出的业务逻辑封装在 LogoutHandler 对象中，会执行会话的清理操作；
 3. 操作成功之后再跳转到登出成功页面。
 
 ## 认证相关的类
-
 ![AuthenticationManager](/images/spring-cloud/AuthenticationManager.jpg "AuthenticationManager")
+
 
 - AuthenticationManager: 认证的核心接口，输入为用户请求对象，如 UsernamePasswordAuthenticationToken，输出为认证对象 Authentication; 
 - ProviderManager: AuthenticationManager 接口实现类，它包含一组 AuthenticationProvider 对象，而每一个 AuthenticationProvider 代表了一类认证场景，它对应只会处理对应的请求对象；
@@ -53,7 +55,6 @@ categories:
 - Authentication: 认证对象对象；
 
 ## 用户模型
-
 ![UserDetails](/images/spring-cloud/UserDetails.jpg "UserDetails")
 
 在 SpringSecurity 中，定义了 UserDetails 及 Authentication 接口，用于存储用户及认证数据。通过 UserDetails 接口，业务系统可以将用户信息传递给 SpringSecurity, 然后封装成 Authentication, 供后续功能使用。
@@ -277,6 +278,7 @@ protected Authentication createSuccessAuthentication(Object principal,
 ```
 
 通过代码可知：
+
 - UserDetails ---> principal
 - UserDetails.getAuthorities() ---> list of GrantedAuthority
 - requestAuthentication.getCredentials() ---> credentials
@@ -287,6 +289,7 @@ protected Authentication createSuccessAuthentication(Object principal,
 
 **Endpoints**
 SpringSecurity 内置登陆/登出相关的 Endpoint, 用户不做任何配置即可使用，这些 Endpoint 包括：
+
 1. /login,GET: 登陆页面，默认由 DefaultLoginPageGeneratingFilter 对象生成;
 2. /login,POST: 对用户进行认证, 传入参数 `username` 和 `password` 生成 UsernamePasswordAuthenticationToken, 这两个参数名称可以修改；
 3. /login?error: 登陆出错页面；
@@ -294,6 +297,7 @@ SpringSecurity 内置登陆/登出相关的 Endpoint, 用户不做任何配置�
 
 **默认参数**
 在登陆页面表单中需要配置用户名称及密码，它们的默认名称如下：
+
 
 1. username: 用户名称；
 2. password: 用户密码。

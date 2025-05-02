@@ -6,6 +6,7 @@ tags:
 - skywalking
 - 存储模型
 categories:
+
 - Elasticsearch
 ---
 
@@ -16,6 +17,7 @@ categories:
 ## 概述
 
 在 Skywalking 中主要存储有四种类型的数据：
+
 1. metric: 时序数据，该数据的特点是跟时间强相关，一般有四个元素构成：1) 名称；2）时间戳；3）数值；4）标签(tag),表示对指标的属性；
 2. trace: 调用链数据；
 3. log: 日志类数据，如项目中 logback 等框架输出的日志；
@@ -38,6 +40,7 @@ categories:
 ## Service-Instance-Endpoint 概念
 
 在 Skywalking 中，有三个比较重要的概念：1）Service; 2) Instance; 3) Endpoint, 在 Metric, Trace, Log 数据中都会关联这些属性，从而方便统计和查询：
+
 - Service: 代表一个可以提供服务能力的实体，可对应微服务体系中的一个服务；
 - Instance: 代表一个服务实例进程，一个 Service 可以运行多个 Instance；
 - Endpoint: 代表一个请求接口，一个服务中可以包含多个 Endpoint.
@@ -45,7 +48,6 @@ categories:
 ### 工程结构
 
 假定有如下的服务，其中 `NacosProviderApp` 是服务提供方，提供了一个 `/hello/{string}` endpoint, `NacosConsumerApp` 是服务消费方，通过浏览器访问。
-
 ![skywalking-example](/images/es/skywalking-example.jpg "skywalking-example")
 
 ### Service-Instance-Endpoint 索引
@@ -60,6 +62,7 @@ categories:
 | {namespace}_service_relation_server_side-yyyyMMdd    | 服务之间的关联关系        |
 
 **说明：**
+
 1. 假定 `namespace` 为 my-elasticsearch; 
 2. 每一份表会根据业务情况按天生成索引。
 
@@ -262,6 +265,7 @@ categories:
 | Tm...    |   202207021757    |   {...}@192.168.68.62  | TmFjb3NQcm92aWRlckFwcA==.1 | ... | 202207011827 |  
 
 **说明：**
+
 - 通过 `last_ping` 字段进行服务的保活；
 - 通过 `service_id` 关联服务索引；
 - `time_bucket` 字段记录了服务启动的时间；
@@ -467,13 +471,11 @@ categories:
 
 **说明：**
 通过 `source_service_id` 和 `dest_service_id` 两个字段，可以建立起服务之间的调用关系，从而得到服务之间的拓扑图。根据上面的关系，可以得出拓扑图为：`VXNlcg==.0(user)  --> TmFjb3NDb25zdW1lckFwcA==.1(NacosConsumerApp) --> TmFjb3NQcm92aWRlckFwcA==.1(NacosProviderApp)`.
-
 ![skywalking-topology](/images/es/skywalking-topology.jpg "skywalking-topology")
 
 ## Metric 
 
 Skywalking 可以存储以下类别的 Metric 数据：APM, Database, Event, Istio, Istio Data Plane, K8s, SelfObservability, VM, Web Browser. 项目中对接 Skywalking 之后，便可采集 APM 的数据。在本文中，我们分析 APM metric 指标，下图展示了 APM 中包含的所有指标。
-
 ![skywalking-apm-metric](/images/es/skywalking-apm-metric.png "skywalking-apm-metric")
 
 ### 统计维度
@@ -560,6 +562,7 @@ APM metric 指标可以从四个不同的维度进行统计，分别是 Global, 
 | time_bucket   | long        |   时间桶, 这里是S, 如 202207021443  |
 
 **说明：**
+
 - metrics-longavg 索引了值为 `long` 类型的指标；
 - metric_table 字段存储了指标的名称；
 - entity_id 字段，根据 metric_table 值不同，代表不同的含义，在这里，是指 endpont Id 值；
@@ -691,6 +694,7 @@ Mapping 见上文；
 索引结构见上文。
 
 **说明：**
+
 - entity_id 字段在这里代表了 service id.
 
 **3. 数据**
@@ -977,6 +981,7 @@ POST /my-elasticsearch_metrics-percentile-20220702/_search
 第一行表示在 `202207021443` S, `NacosConsumerApp` 服务的 `{GET}/echo/{str}` endpint 的 endpoint_percentile 值为 `0,510|1,510|2,510|3,510|4,510`.
 
 **说明：**
+
 - 字段 `dataset` 和 `value` 存储的值不理解，后续再深入理解。
 
 ## Trace 
@@ -1077,6 +1082,7 @@ Trace 日志存储在 `{namespace}_segment-yyyyMMdd` 索引中。
 
 
 **说明：**
+
 - tags 字段：使用数组存储，可以动态添加多个 tag, 但只能使用内置 tag, 不能自定义 tag; 
 - data_binary 字段：segment 内容通过 Base64 编码存储，不能索引。
 
@@ -1290,6 +1296,7 @@ Log 日志存储在 `{namespace}_log-yyyyMMdd` 索引中。
 
 
 **说明：**
+
 - tags 字段：使用数组存储，可以动态添加多个 tag, 但只能使用内置 tag, 不能自定义 tag, 该字段只存储被索引的字段; 
 - tags_raw_data 字段：tags 原始内容通过 Base64 编码存储，不能索引；
 
@@ -1468,6 +1475,7 @@ Event 日志存储在 `{namespace}_events-yyyyMMdd` 索引中。
 
 
 **说明：**
+
 - service 字段：服务名称; 
 - service_instance 字段：服务实例名称；
 

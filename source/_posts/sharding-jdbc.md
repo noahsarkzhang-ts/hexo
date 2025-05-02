@@ -7,6 +7,7 @@ tags:
 - 分库
 - 分表
 categories:
+
 - Springboot
 ---
 
@@ -17,6 +18,7 @@ categories:
 ## 概述
 
 ShardingSphere 是一套开源的分布式数据库中间件解决方案组成的生态圈，它由 Sharding-JDBC、Sharding-Proxy 和 Sharding-Sidecar（计划中）这3款相互独立的产品组成。 他们均提供标准化的数据分片、分布式事务和数据库治理功能，可适用于如 Java 同构、异构语言、云原生等各种多样化的应用场景。
+
 
 - Sharding-JDBC: 定位为轻量级 Java 框架，在 Java 的 JDBC 层提供的额外服务。 它使用客户端直连数据库，以 jar 包形式提供服务，无需额外部署和依赖，可理解为增强版的 JDBC 驱动，完全兼容 JDBC 和各种 ORM 框架；
 - Sharding-Proxy: 定位为透明化的数据库代理端，提供封装了数据库二进制协议的服务端版本，用于完成对异构语言的支持。 目前先提供 MySQL/PostgreSQL 版本，它可以使用任何兼容 MySQL/PostgreSQL 协议的访问客户端(如：MySQL Command Client, MySQL Workbench, Navicat等 )操作数据，对 DBA 更加友好；
@@ -57,8 +59,8 @@ ShardingSphere 是一套开源的分布式数据库中间件解决方案组成�
 ## 配置数据库
 
 以 `t_order` 例，如下图所示：
-
 ![sharding-jdbc-example](/images/spring-cloud/sharding-jdbc-example.jpg "sharding-jdbc-example")
+
 
 - `t_order` 数据库有两个分片，以 `user_id` 为分片键，同一个用户的所有订单在一个库里。每一个分片有一个 slave 结点，实现主从复制；
 - `t_order` 以 `order_id ` 为分片键，分为两个表；
@@ -119,6 +121,7 @@ $ docker run -d -p 3310:3306 --name mysql-slave1 \
 ```
 
 Mysql 配置参数：
+
 - 配置文件目录：/etc/mysql
 - 日志文件目录：/var/log/mysql
 - 数据文件目录：/var/lib/mysql
@@ -419,6 +422,7 @@ public interface OrderMapper {
 ```
 
 **说明：**
+
 - 若数据表主键由 Sharding-JDBC 生成，则在插入操作中不应包含主键，该主键由 Shardings-JDBC 生成，并改写 Sql 自动插入到数据库中，如此处的 `t_order`；
 - 可通过 `Options(useGeneratedKeys = true, keyProperty = "orderId")` 选项，返回插入的主键。
 

@@ -9,6 +9,7 @@ tags:
 - EventPoller
 - Session
 categories: 
+
 - 代码分析
 ---
 
@@ -23,10 +24,11 @@ categories:
 使用 Reactor 模型有一个缺点：Accept 处理瓶颈。Accept 请求只由一个线程来处理，在短时间内大量客户端同时连接的场景下，可能会有性能问题。这个问题的本质是单线程处理能力有限，可以使用多线程来解决这个问题。
 
 在 ZLMediaKit 最新的版本中，便使用多线程来处理 Accept 请求，并使用负载均衡算法将客户端连接平均分配到某个工作线程中，整体的结构如下图所示：
-
 ![zlmediakit-tcp-model](/images/zlmediakit/zlmediakit-tcp-model.jpg "zlmediakit TCP")
 
 **对象介绍：**
+
+
 1. TcpServer：TCP 服务器对象，负责服务的启动、端口的监听、客户端连接的创建及 Session 会话的创建等功能；
 2. Server Socket：ZLMediaKit 抽象的 Socket 对象，代表服务器 Socket 对象，负责端口的监听、接收 Accept 事件回调等功能；
 3. Client Socket：ZLMediaKit 抽象的 Socket 对象，代表客户端 Socket 对象，表示与客户端的一个连接，负责1）读取数据并传递给 Session 对象，2）将数据写入到网络上；
@@ -40,6 +42,7 @@ categories:
 # 网络模型
 
 使用多线程 + epoll (select)，一个 Server fd + 多个 epoll 实例。每一个线程都创建了一个 epoll 实例，并以 ET 边沿触发模式监听同一个 Server fd 的读事件，使用 EPOLLEXCLUSIVE 标志位防止惊群效应，线程阻塞在 epoll_wait上 等待客户端连接。
+
 
 > 不同系统有不同的多路复用技术，Linux 系统为 epoll，Windows 为 select, 现以 Linux 为例。
 
@@ -171,6 +174,7 @@ Server fd 包含在 Server Socket 对象中，且所有的 Server Socket 对象�
 
 ## Client Socket 负载均衡
 EventPoller 收到 Accept 事件时会生成一个 Client Socket 客户端连接对象，该客户端连接对象最终分配给哪一个 EventPoller 线程处理？一般有两个策略：
+
 1. 使用当前 EventPoller 线程，即处理 Accept 请求的 EventPoller 线程；
 2. 根据业务负载均衡算法，分配一个负载较小的 EventPoller 线程。
 
@@ -309,6 +313,8 @@ bool Socket::attachEvent(const SockNum::Ptr &sock) {
 }
 ```
 Socket 回调方法说明：
+
+
 - onAccept: 处理 Servet socket Accept 事件；
 - onRead：处理 Client socket Reead 事件；
 - onWriteAble：处理 Client socket 可写事件；
@@ -400,6 +406,7 @@ void EventPoller::runLoop(bool blocked, bool ref_self) {
 ### Accept 回调
 
 在 Socket Accept 回调中，主要是创建 Client Socket，并根据负载均衡方法，分配一个负载最小的 EventPoller 线程。并最终调用到 TcpServer 对象中的 onAcceptConnection 方法，在方法中完成如下功能：
+
 - 创建 Session 对象；
 - 注册 Client Socket 事件回调，将读写事件路由到 Session 对象的方法中。
 

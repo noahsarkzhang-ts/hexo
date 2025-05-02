@@ -9,6 +9,7 @@ tags:
 - oatuh2
 - sentinel
 categories:
+
 - Springboot
 ---
 
@@ -32,8 +33,8 @@ categories:
 ### 工作流程
 
 下图展示了 `Spring Cloud Gateway` 的工作流程：
-
 ![spring_cloud_gateway_diagram](/images/spring-cloud/spring_cloud_gateway_diagram.png "spring_cloud_gateway_diagram")
+
 
 - 客户端向 `Spring Cloud Gateway` 发送请求；
 - 如果 `Gateway Handler Mapping` 判定请求匹配到一个 `Route`, 则把请求发送到 `Gateway Web Handler`;
@@ -85,6 +86,7 @@ spring:
 ```
 
 一个 Route 包含如下的内容：
+
 - id: 唯一标识这个 Route;
 - uri: 路由的目的地址，可以指定一个地址，如 `http://ip:port`，也可以指定服务名称，如 `lb://serviceName`;
 - predicates: 断言，路由的判定条件；
@@ -95,7 +97,6 @@ spring:
 Predicate 来源于 Java 8，是 Java 8 中引入的一个函数，Predicate 接受一个输入参数，返回一个布尔值结果。该接口包含多种默认方法来将 Predicate 组合成其他复杂的逻辑（比如：与，或，非）。可以用于接口请求参数校验、判断新老数据是否有变化需要进行更新操作。
 
 在 Spring Cloud Gateway 中 Spring 利用 Predicate 的特性实现了各种路由匹配规则，有通过 Header、请求参数等不同的条件来进行作为条件匹配到对应的路由，如下图所示：
-
 ![springcloud-gateway-predicate](/images/spring-cloud/springcloud-gateway-predicate.gif "springcloud-gateway-predicate")
 
 ### Filter
@@ -153,6 +154,7 @@ spring:
 ## 统一认证
 
 假定已经有认证服务器且使用 `JWT Token`, `Spring Cloud Gateway` 在认证体系中主要是作为资源服务器的角色，从请求中获取 `JWT Token`, 并验证其合法性。整体上来说，分为两个步骤：
+
 1. 实例化 `SecurityWebFilterChain` 对象，设置安全相关的参数；
 2. 开启资源服务器功能。
 
@@ -401,12 +403,14 @@ public class AuthorizationManager implements ReactiveAuthorizationManager<Author
 ## 限流
 
 从 1.6.0 版本开始，Sentinel 提供了 Spring Cloud Gateway 的适配模块，可以提供两种资源维度的限流：
+
 - route 维度：即在 Spring 配置文件中配置的路由条目，资源名为对应的 routeId;
 - 自定义 API 维度：用户可以利用 Sentinel 提供的 API 来自定义一些 API 分组。
 
 ### 引入 Sentinel
 
 引入 `Sentinel` 包含如下步骤：
+
 - 加入 Sentinel 配置文件；
 - 加入自定义业务逻辑。
 
@@ -450,6 +454,7 @@ public class GatewayConfiguration {
 }
 ```
 自定义业务逻辑包括：
+
 - 自定义限流处理器：可以自定义返回的业务信息，否则返回默认的信息，如：Blocked by Sentinel: FlowException; 
 - 自定义 api 组：可以将分散的 URL 加入到一个分组，使用统一的限流逻辑；
 - 自定义网关 Rules：可以根据 Roule ID, api 分组进行限流配置；

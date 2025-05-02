@@ -11,7 +11,7 @@ tags:
 - top 命令
 - tcpdump 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录在工作中用到的常用 Linux 命令。

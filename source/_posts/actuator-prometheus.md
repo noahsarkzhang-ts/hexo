@@ -7,6 +7,7 @@ tags:
 - prometheus
 - 监控系统
 categories:
+
 - Springboot
 ---
 
@@ -15,10 +16,10 @@ categories:
 <!-- more -->
 
 ## 概述
-
 ![promethues](/images/spring-cloud/promethues.svg "promethues")
 
 从上图可以看到，整个 Prometheus 可以分为四大部分，分别是：
+
 
 - Prometheus Server : Prometheus组件中的核心部分，负责实现对监控数据的获取，存储以及查询; 
 - Exporter : Methic 数据通过 Pull/Push 两种方式推送数据到 Prometheus Server; 
@@ -54,6 +55,7 @@ categories:
 ```
 
 **注意：**
+
 - Springboot 与 micrometer-registry-prometheus 的版本需要匹配。
 
 ### 加入配置项
@@ -68,6 +70,7 @@ management:
     tags:
       application: ${spring.application.name}
 ```
+
 
 - management.endpoints.web.exposure.include: 开放的监控 endpoints; 
 - management.metrics.tags.application: 向 prometheus metric 时序数据中加入 application 的 tag.
@@ -105,6 +108,7 @@ scrape_configs:
 ```
 
 在这里，Prometheus 使用拉的方式从指定的目标中拉取 metric 数据，并且可以配置拉取的间隔时间及超时时间。
+
 - scrape_interval: 轮洵拉取数据的间隔时间；
 - scrape_timeout: 请求超时时间；
 - metrics_path: metric endpoit; 
@@ -113,7 +117,6 @@ scrape_configs:
 ### 启动 Promethues
 
 运行 `docker run` 之后即可通过 `http://hostip:9090` 访问 Promethues，可以选择不同的指标进行展示，如下图所示：
-
 ![premetheus-overview](/images/spring-cloud/premetheus-overview.jpg "premetheus-overview")
 
 ## 安装 Grafana
@@ -131,17 +134,14 @@ $ docker run -d --name mygrafana -p 3000:3000 grafana/grafana:7.5.16
 ```
 
 启动之后，通过 `http://hostip:3000` 访问 grafana, 输入默认用户/密码: `admin/admin`, 即可登陆。
-
 ![grafana-login](/images/spring-cloud/grafana-login.jpg "grafana-login")
 
 ### 添加数据源
 
 向 Grafana 中添加 premetheus 数据源，如下图所示：
-
 ![grafana-add-datasource](/images/spring-cloud/grafana-add-datasource.jpg "grafana-add-datasource")
 
 添加成功之后，我们就可以通过 Grafana 查看 premetheus 中的 metric 数据。
-
 ![grafana-dashboard](/images/spring-cloud/grafana-dashboard.jpg "grafana-dashboard")
 
 ### 添加 Micrometer Dashboard
@@ -151,28 +151,25 @@ $ docker run -d --name mygrafana -p 3000:3000 grafana/grafana:7.5.16
 **1. 搜索 Micrometer Dashboard**
 
 前往 [Grafana Lab - Dashboards ](https://grafana.com/grafana/dashboards/), 输入关键词 `micrometer` 查询。
-
 ![grafana-search-dashboard](/images/spring-cloud/grafana-search-dashboard.jpg "grafana-search-dashboard")
 
 **2. 查看 Micrometer Dashboard 详情**
 
 打开 `Micrometer Dashboard`, 复制 `dashboard id`,方便后续导入操作。
-
 ![grafana-dashboard-id](/images/spring-cloud/grafana-dashboard-id.jpg "grafana-dashboard-id")
 
 **3. 导入 Micrometer Dashboard 模板**
 
 在 Grafana 中根据 `dashboard id` 导入 Micrometer Dashboard.
-
 ![grafana-imort-dashboard](/images/spring-cloud/grafana-imort-dashboard.jpg "grafana-imort-dashboard")
 
 **4. 使用 Micrometer Dashboard**
 
 使用 `Micrometer Dashboard` 查看 premetheus 数据源数据，其效果如下图所示：
-
 ![jvm-micrometer](/images/spring-cloud/jvm-micrometer.jpg "jvm-micrometer")
 
 ### 小结
+
 - 引入 Prometheus, grafana 之后，可以方便整合其生态链中相关的监控工作，方便后期扩展。 
 
 

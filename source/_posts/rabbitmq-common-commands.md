@@ -6,7 +6,7 @@ tags:
 - rabbitmqctl 命令
 - rabbitmq
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录在工作中用 **rabbitmqctl** 命令协助定位 **Rabbitmq** 问题。 

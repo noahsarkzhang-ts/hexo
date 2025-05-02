@@ -9,6 +9,7 @@ tags:
 - queue
 - producer confirm
 categories:
+
 - Alligator网关
 ---
 
@@ -19,16 +20,17 @@ RabbitMQ 是一种消息系统，相比较其它消息系统，除了 queue，�
 <!-- more -->
 
 现在假设有这样一个业务场景，一个 web app 具备生成 PDF 文档的能力，而生成 PDF 文档是一个耗时的操作，需要交给后台的 PDF 任务去执行。为了提高系统的吞吐量，引入 RabbitMQ 缓存请求，其流程为：
+
 1. 用户发送一个生成 PDF 的请求给 web app;
 2. Web app (Producer) 发送一个消息给 RabbitMQ;
 3. Exchange 收到消息并路由消息到合适的 Queue; 
 4. PDF 任务(Consumer) 接收来自 Queue 的消息，生成 PDF.
 
 消息不是直接发送到 Queue 中，而是发送到 Exchange 中，最后通过 routing Key 在 Exchange 和 Queue 中建立一个 binding 关系，从而将消息路由到不同的 Queue 中。
-
 ![exchanges-bidings-routing-keys](/images/alligator/exchanges-bidings-routing-keys.png "exchanges-bidings-routing-keys")
 
 RabbitMQ 中消息处理流程：
+
 1. Producer 发布一个消息到 Exchange 中，在创建 Exchange 时必须指定其类型；
 2. Exchange 收到消息并负责消息的路由，Exchange 会根据消息的属性进行路由，其中，routing key 是一个关键的属性，根据 Exchange 类型，可以有不同的路由策略；
 3. Bindings(绑定关系) 必须创建，它决定了消息从 Exchange 路由到哪个 Queue，在这个 case 中，有两个绑定关系，路由到那个 Queue，取决于消息的属性；
@@ -37,6 +39,7 @@ RabbitMQ 中消息处理流程：
 
 Exchange 有四种类型：direct, topic, headers 和 fanout.
 ![exchanges-topic-fanout-direct](/images/alligator/exchanges-topic-fanout-direct.png "exchanges-topic-fanout-direct")
+
 
 1. Direct: Binding Key 与 Routing Key 精确匹配。binding key 是 exchange 与 queue 建立绑定关系指定的属性，而 routing key 则是由 Producer 发送消息是指定的属性，如果两个 key 相同，消息则路由到与 binding key 相关联的 queue 中；
 2. Fanout: 广播所有的消息；
@@ -85,6 +88,7 @@ channel.basic_publish(exchange='',
 Consumer ACK 有两种模式：1）自动；2）手动。在自动模式下，Broker 分发消息之后即认为分发成功，便可删除消息，该模式被认为是不安全的。而自动模式需要程序手动发送 Ack 确认信息，这样可以保证消息被处理。
 
 官方文档对自动模式描述如下：
+
 > In automatic acknowledgement mode, a message is considered to be successfully delivered immediately after it is sent. This mode trades off higher throughput (as long as the consumers can keep up) for reduced safety of delivery and consumer processing. This mode is often referred to as "fire-and-forget". Unlike with manual acknowledgement model, if consumers's TCP connection or channel is closed before successful delivery, the message sent by the server will be lost. Therefore, automatic message acknowledgement should be considered unsafe and not suitable for all workloads.
 
 通过下面方法来设置自动或手动：
@@ -110,6 +114,7 @@ channel.basicConsume(queueName, autoAck, "a-consumer-tag",
 默认是自动模式，可以在 channel.basicConsume 方法中设置为 false。
 
 **手动 Ack 有三个方法：**
+
 - basic.ack : 用于肯定应答；
 - basic.nack ：用于否定应答，可以重新 requeue 排队发送；
 - basic.reject ：用于否定应答，与 nack 的区别在于是否支持批量确认。
@@ -121,6 +126,7 @@ long deliveryTag = envelope.getDeliveryTag();
 channel.basicAck(long deliveryTag, boolean multiple);
 ```
 其中，
+
 - deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；
 - multiple ：是否批量确认，true 表示 deliveryTag 之前的消息都被确认，false 只确认当前消息。
 
@@ -131,6 +137,7 @@ long deliveryTag = envelope.getDeliveryTag();
 channel.basicNack(long deliveryTag, boolean requeue, boolean multiple);
 ```
 其中，
+
 - deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；
 - requeue : 是否重新排队发送，true 表示重新排队，false 表示删除该消息；
 - multiple ：是否批量确认，true 表示 deliveryTag 之前的消息都被确认，false 只确认当前消息。
@@ -142,6 +149,7 @@ long deliveryTag = envelope.getDeliveryTag();
 basic.reject(long deliveryTag, boolean requeue);
 ```
 其中，
+
 - deliveryTag : 消息的唯一标示，在一个channel 中一个消息具有唯一的 deliveryTag；
 - requeue : 是否重新排队发送，true 表示重新排队，false 表示删除该消息；
 
@@ -185,6 +193,7 @@ AMQP.Exchange.DeclareOk exchangeDeclare​(String exchange, String type, boolean
 ```
 
 参数说明：
+
 - exchange: exchange 名称
 - type: exchange type
 - durable: 是否持久化，若为 true，服务器重启之后，exchange 还会存在。
@@ -195,6 +204,7 @@ AMQP.Queue.DeclareOk queueDeclare​(String queue, boolean durable, boolean excl
 ```
 
 参数说明：
+
 - queue: queue 名称
 - durable: 是否持久化，若为 true，服务器重启后，queue 仍然存在
 - exclusive: 是否具有排他性，若为 true, 不允许其它客户端连接
@@ -207,6 +217,7 @@ AMQP.Queue.BindOk queueBind​(String queue, String exchange, String routingKey,
 ```
 
 参数说明：
+
 - queue: queue 名称
 - exchange: exchange 名称
 - routingKey: 路由 key
@@ -218,6 +229,7 @@ void basicPublish​(String exchange, String routingKey, boolean mandatory, AMQP
 ```
 
 参数说明：
+
 - exchange: exchange 名称
 - routingKey: 路由 key
 - mandatory: 若为 tue,表示消息若不能路由，则将消息 return 给发送者，发送者可以定义重发逻辑，若为 false, 则将消息丢弃或发送给另外的 exchange
@@ -234,6 +246,7 @@ channel.basicPublish(exchangeName, routingKey, true, MessageProperties.PERSISTEN
 <font color='red'>在 RabbitMQ 中，exchange 及 queue 不用提前创建，调用上面的申明方法时，如果没有不存在，则会自动创建。</font>
 
 ### 2.5 Virtual Hosts
+
 > RabbitMQ is multi-tenant system: connections, exchanges, queues, bindings, user permissions, policies and some other things belong to virtual hosts, logical groups of entities
 
 RabbitMQ 是一个多租户系统，connections, exchanges, queues, bindings, user 权限, 策略及其它东西都属于一个 virtual host。使用 virtual host，需要用户提前创建，系统默认的 vhost 是 '/'。

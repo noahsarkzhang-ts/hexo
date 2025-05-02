@@ -7,6 +7,7 @@ tags:
 - watermark
 - 侧输出流
 categories:
+
 - Flink
 ---
 
@@ -17,6 +18,7 @@ categories:
 ## 概述
 
 在 Flink 中可以使用三种方式对乱序数据进行处理：
+
 - 设置 `Watermark` 延迟时间，可以延迟 `Watermark` 的产生；
 - 设置 `Window` 延迟关闭时间；
 - 设置侧输出流，将数据输出到侧输出流，业务根据需要进行处理。

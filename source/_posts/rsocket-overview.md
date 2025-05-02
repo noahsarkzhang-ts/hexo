@@ -5,22 +5,26 @@ updated: 2021-11-21 12:45:56
 tags:
 - rscocket
 categories:
+
 - RPC
 ---
 
 ## 概述
 RSocket 官网对 RSocket 定义：
+
 > RSocket is a binary protocol for use on byte stream transports such as TCP, WebSockets, and Aeron.RSocket provides a protocol for Reactive Streams semantics between client-server, and server-server communication.
 
 <!-- more -->
 
 RSocket 是一个构建在字节流传输协议，如 TCP, WebSocket 和 Aeron(UDP) 之上的二进制协议，同时，它也是一个为client-server,server-server 之间通信提供了反应式流语义的协议。本质上来说，RSocket 是基于反应式编程的一个二进制协议。一个反应式系统应该具备如下特征：
+
 - Responsive: 只要有可能，系统就会及时地作出反应;
 - Resilient: 系统出现 failure 时仍然保持响应性，并能够独立恢复;
 - Elastic: 系统在不断变化的工作负载之下依然能保持即时响应性;
 - Message Driven: 异步非阻塞消息驱动架构。
 
 RSocket 作为一个应用层的协议，提供了丰富的功能：
+
 - Multiplexed, Binary Protocol：多路复用的二进制协议；
 - Bidirectional Streaming: 双向流；
 - Flow Control: 流控制；
@@ -36,19 +40,15 @@ RSocket 作为一个应用层的协议，提供了丰富的功能：
 在 RSocket 中，使用 Flux 和 Mono 两个 Reactive Streams 框架来处理流数据，其中 Flux 处理一个流中 0 个或多个消息的场景，而 Mono 处理 0 个或最多 1 个消息的场景。
 
 >Flux: A Reactive Streams Publisher with rx operators that emits 0 to N elements, and then completes (successfully or with an error).
-
 ![flux](/images/rpc/flux.svg "flux")
 
 >Mono: A Reactive Streams Publisher with basic rx operators that emits at most one item via the onNext signal then terminates with an onComplete signal (successful Mono, with or without value), or only emits a single onError signal (failed Mono).
-
 ![mono](/images/rpc/mono.svg "mono")
 
 Flux 和 Mono 都继承自 Publisher 接口，Publisher 接口只有一个方法 subscribe() 方法，这个方法主要是用来订阅 Subscriber 对象，而 Subscriber 对象用来消息处理数据。
-
 ![rsocket-publisher-class](/images/rpc/rsocket-publisher-class.jpg "rsocket-publisher-class")
 
 Publisher 使用了观察者模式，消费者订阅观察者对象 Subscriber，生产者通过 Publisher 对象发布数据，再通知给 Subscriber 对象。
-
 ![rsocket-publiser](/images/rpc/rsocket-publisher.jpg "rsocket-publisher")
 
 Subscriber 接口是消息最终处理接口，其定义如下：
@@ -103,6 +103,7 @@ RSocket 使用二进制帧进行通信，其格式如下所示：
 
 ```
 **字段描述：**
+
 - Stream ID: (31 bits = max value 2^31-1 = 2,147,483,647), 用 31 位无符号整数表示 StreamId, 0 专门用来描述整个连接；
 - Frame Type:(6 bits = max value 63) 帧类型，下文会介绍；
 - Flags: (10 bits), 标志位，具体值取决于帧类型，0 表示不设置。协议要求，所有帧要带两个标志位: (I)gnore: 如果不识别该帧是否忽略 ,(M)etadata: 是否带有 Metadata; 
@@ -160,11 +161,11 @@ RSocket 使用二进制帧进行通信，其格式如下所示：
 
 ### 通信模型
 在 RSocket 中支持四种通信模型，分别是：
+
 - Fire-Forget: 只发送 Request，不用 Response;
 - Request-Response: 一个 Request，一个 Response;
 - Request-Stream: 一个 Request, 响应为 Stream;
 - Channel：双向流。
-
 ![rsocket-interaction-model](/images/rpc/rsocket-interaction-model.png "rsocket-interaction-model")
 
 四种通信模型对应的帧请求分别为:REQUEST_FNF,REQUEST_RESPONSE,REQUEST_STREAM 及 REQUEST_CHANNEL, 响应结果使用 PAYLOAD 帧，PAYLOAD 用来传输数据。另外，响应结束的 COMPLETE 标志位在 PAYLOAD 帧中定义。 PAYLOAD 定义如下：
@@ -179,12 +180,14 @@ RSocket 使用二进制帧进行通信，其格式如下所示：
                      Metadata & Data
 ```
 
+
 - Frame Type: (6 bits) 0x0A;
 - Flags: (10 bits):
     - (M)etadata: 带有 Metadata 数据；
     - (F)ollows: 表示是否将数据分包(fragments),请求数据大于一个 Frame 长度时使用；
     - (C)omplete: 流结束标志位，如果设置，onComplete() 方法会被调用; 
     - (N)ext: 传递数据，如果设置，onNext(Payload) 方法会被调用;
+
 - Payload Data: 数据
 
 REQUEST_FNF, REQUEST_RESPONSE, REQUEST_STREAM 及 REQUEST_CHANNEL 定义比较类似，也相对简单，以 REQUEST_RESPONSE 为例：
@@ -199,6 +202,7 @@ REQUEST_FNF, REQUEST_RESPONSE, REQUEST_STREAM 及 REQUEST_CHANNEL 定义比较�
 +-------------------------------+
                      Metadata & Request Data
 ```
+
 - Frame Type: (6 bits) 0x04;
 - Flags: (10 bits):
     - (M)etadata: 带有 Metadata 数据；
@@ -206,23 +210,28 @@ REQUEST_FNF, REQUEST_RESPONSE, REQUEST_STREAM 及 REQUEST_CHANNEL 定义比较�
 Request Data: 请求的数据
 
 说完帧的格式，我们来看下 Requester 和 Responder 之间的通信流程，以 Request-Response 为例，先作以下约定：
+
 > "RQ -> RS" refers to Requester sending a frame to a Responder. And "RS -> RQ" refers to Responder.
 > "*" refers to 0 or more and "+" refers to 1 or more.
 
 **Request-Response:**
 ```go
+
 1. RQ -> RS: REQUEST_RESPONSE
 2. RS -> RQ: PAYLOAD with COMPLETE
 or
+
 
 1. RQ -> RS: REQUEST_RESPONSE
 2. RS -> RQ: ERROR[APPLICATION_ERROR|REJECTED|CANCELED|INVALID]
 or
 
+
 1. RQ -> RS: REQUEST_RESPONSE
 2. RQ -> RS: CANCEL
 ```
 有三种情况：
+
 1. 请求正常，Requester 发送一个 REQUEST_RESPONSE 帧，Responder 响应一个带 COMPLETE 标志位的 PAYLOAD;
 2. 请求出错，Requester 发送一个 REQUEST_RESPONSE 帧，Responder 响应一个 ERROR 帧，帧中带有错误码及错误信息；
 3. 请求取消，Requester 发送一个 REQUEST_RESPONSE 帧，紧接着发送一个 CANCEL, 取消请求。

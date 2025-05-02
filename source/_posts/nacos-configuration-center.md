@@ -6,6 +6,7 @@ tags:
 - Nacos
 - 配置中心
 categories:
+
 - Springboot
 ---
 
@@ -21,6 +22,7 @@ Nacos 有特定的数据模型来定义一个配置文件，其模型如下：
 ![nacos-data-model](/images/spring-cloud/nacos-data-model.jpeg "nacos-data-model")
 
 在 Nacos 中有几个重要的概念：
+
 1. Namespace: 用于进行租户粒度的配置隔离。不同的命名空间下，可以存在相同的 Group 或 Data ID 的配置。Namespace 的常用场景之一是不同环境的配置的区分隔离，例如开发测试环境和生产环境的资源（如配置、服务）隔离等；
 2. Group: 一组相关或者不相关的配置项的集合称为配置集。在系统中，一个配置文件通常就是一个配置集，包含了系统各个方面的配置。例如，一个配置集可能包含了数据源、线程池、日志级别等配置项；
 3. DataId: Nacos 中的某个配置集的 ID。配置集 ID 是组织划分配置的维度之一。Data ID 通常用于组织划分系统的配置集。一个系统或者应用可以包含多个配置集，每个配置集都可以被一个有意义的名称标识。Data ID 通常采用类 Java 包（如 com.taobao.tc.refund.log.level）的命名规则保证全局唯一性。此命名规则非强制；
@@ -112,11 +114,13 @@ spring:
 ```
 
 在 Nacos Spring Cloud 中，dataId 的完整格式如下：
+
 - prefix 默认为 spring.application.name 的值，也可以通过配置项 spring.cloud.nacos.config.prefix 来配置; 
 - spring.profiles.active 即为当前环境对应的 profile，详情可以参考 Spring Boot文档。 注意：当 spring.profiles.active 为空时，对应的连接符 - 也将不存在，dataId 的拼接格式变成 ${prefix}.${file-extension}; 
 - file-exetension 为配置内容的数据格式，可以通过配置项 spring.cloud.nacos.config.file-extension 来配置。目前只支持 properties 和 yaml 类型。
 
 通过这种方式配置，Namespace, GroupId 使用的是默认值，经过上述配置之后，Nacos 中相关值如下：
+
 - Namespace: 默认为 public; 
 - GroupId: 默认为 DEFAULT_GROUP; 
 - DataId: example.properties
@@ -170,11 +174,13 @@ spring.cloud.nacos.config.extension-configs[2].refresh=true
 
 可以看到:
 
+
 - 通过 spring.cloud.nacos.config.extension-configs[n].data-id 的配置方式来支持多个 Data Id 的配置；
 - 通过 spring.cloud.nacos.config.extension-configs[n].group 的配置方式自定义 Data Id 所在的组，不明确配置的话，默认是 DEFAULT_GROUP;
 - 通过 spring.cloud.nacos.config.extension-configs[n].refresh 的配置方式来控制该 Data Id 在配置变更时，是否支持应用中可动态刷新， 感知到最新的配置值。默认是不支持的。
 
 **注意：**
+
 - 多个 Data Id 同时配置时，他的优先级关系是 spring.cloud.nacos.config.extension-configs[n].data-id 其中 n 的值越大，优先级越高；
 - spring.cloud.nacos.config.extension-configs[n].data-id 的值必须带文件扩展名，文件扩展名既可支持 properties，又可以支持 yaml/yml。 此时 spring.cloud.nacos.config.file-extension 的配置对自定义扩展配置的 Data Id 文件扩展名没有影响。
 

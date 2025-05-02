@@ -5,7 +5,7 @@ updated: 2024-04-12 21:28:55
 tags:
 - redis 命令
 categories: 
-- 运维
+- 命令
 ---
 
 这篇文章主要记录常用的 Redis 命令。

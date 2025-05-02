@@ -5,6 +5,7 @@ updated: 2023-03-05 12:42:00
 tags:
 - metric
 categories:
+
 - MQTT
 ---
 
@@ -17,17 +18,21 @@ categories:
 Metric 属于系统可观察性的内容，它可以告诉外部系统内部的运行情况，从而及时进行干预。在之前的文章中描述过监控系统的四大黄金指标([量化：监控系统 4 大黄金指标](https://zhangxt.top/2022/01/22/four-golden-signals-of-monitor/)), 在这里，按照这个标准进行定义。
 
 **1. 延迟：服务请求所需时间**
+
 - 每一个 Connection 上，PUBLISH QoS1&2 消息每秒/每分钟平均响应时间（需要记录每一个报文的开发时间和结束时间）。
 
 **2. 通讯量：监控当前系统的流量，用于衡量服务的容量需求**
+
 - 每一个 Connection 上，PUBLISH QoS1&2 消息每秒/每分钟请求量（QPS）；
 - 整个系统，PUBLISH QoS1&2 消息每秒/每分钟请求量（QPS）。
 
 **3. 错误：监控当前系统所有发生的错误请求，衡量当前系统错误发生的速率**
+
 - 每一个 Connection 上，PUBLISH QoS1&2 消息每秒/每分钟错误请求量（QPS）；
 - 整个系统，PUBLISH QoS1&2 消息每秒/每分钟请求量（QPS）。
 
 **4. 饱和度：衡量当前服务的饱和度**
+
 - 当前系统的用户量（连接数）；
 - 每一个 Connection 上，接收/发送报文的数量或字节数；
 - 内存或 CPU 使用情况。
@@ -69,6 +74,7 @@ Histogram 计算分位数的方法是先对整个数据集进行排序(底层使
 ### Sentinel
 
 Sentinel 是阿里巴巴开源的一个限流工具，它可以根据请求的 QPS 阈值对请求进行降级处理。Sentinel 底层采用高性能的滑动窗口数据结构 LeapArray 来统计实时的秒级指标数据，可以很好地支撑写多于读的高并发场景，它可以计算出如下指标数据：
+
 - passQps: 请求的 QPS; 
 - blockQps: 被阻塞的 QPS;
 - successQps: 成功请求的 QPS;

@@ -7,6 +7,7 @@ tags:
 - wordcount
 - quickstart
 categories:
+
 - Flink
 ---
 
@@ -19,6 +20,7 @@ categories:
 ### 项目约定
 
 本工程使用的环境如下：
+
 - Flink 版本：1.15
 - IDE: IDEA 社区版
 - JDK 版本：JDK 9
@@ -35,12 +37,12 @@ mvn archetype:generate                \
 ```
 
 或在 IDEA 中根据 `Archetype` 创建一个工程。
-
 ![flink-maven-archetype](/images/flink/flink-maven-archetype.png "flink-maven-archetype")
 
 通过上面两种方式，会引入依赖的 Flink Jar, 同时生成一个骨架程序，便可在其中添加逻辑程序。
 
 **说明：**
+
 1. 引入的 Flink Jar 包 Maven Scope 类型为 `provided`, 执行时会报 `错误: 无法初始化主类 org.example.HelloWorldStreamJob`, 需要在 `Configurations` 中加入 `Include dependencies with ‘Provided’ scope` 选项;
 2. 工程中引入了 `maven-shade-plugin` 插件，它会将所有的依赖连同代码打成一个 fat jar, 并指定启动类 `mainClass`.
 
@@ -95,6 +97,7 @@ public class HelloWorldStreamJob {
 ```
 
 **代码流程如下：**
+
 1. 设置执行环境为流执行环境；
 2. 从执行参加中读取 `host`, `port` 参数；
 3. 将时间设置为处理时间语义；
@@ -172,11 +175,9 @@ Cancelled job 17fb86d9fb840d83e4802b657d478c09.
 ### Flink Dashboard
 
 Flink 提供了一个 Web Dashboard, 地址一般为：`http://jobmanager:8081`, 可以在上面提交任务。
-
 ![flink-ui-submit](/images/flink/flink-ui-submit.png "flink-ui-submit")
 
 可以在 `Task Managers` 菜单中查看执行日志：
-
 ![flink-ui-log](/images/flink/flink-ui-log.png "flink-ui-log")
 
 另外，也可以在页面上管理任务，如取消、停止任务等等。
@@ -188,4 +189,5 @@ Flink 提供了一个 Web Dashboard, 地址一般为：`http://jobmanager:8081`,
 [2]:https://nightlies.apache.org/flink/flink-docs-release-1.15/zh/docs/deployment/cli/
 
 [1. Flink 项目配置][1]
+
 [2. Flink 命令行界面][2]
